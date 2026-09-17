@@ -721,7 +721,7 @@ async function mainRenderCalendar(){
     const hasTv = mainState.tvDates.has(key);
     const hasRadio = mainState.radioDates.has(key);
     const dots = (hasTv || hasRadio)
-      ? `<span class="dotrow">${hasTv?'<i style="background:var(--amber)"></i>':''}${hasRadio?'<i style="background:var(--sun-red)"></i>':''}</span>`
+      ? `<span class="dotrow">${hasTv?'<i style="background:var(--amber: #e0a800)"></i>':''}${hasRadio?'<i style="background:var(--sun-red)"></i>':''}</span>`
       : '';
     cells += `<div class="${classes.join(' ')}" data-date="${key}">
         <span class="num ${numClass}">${day}</span>
@@ -742,7 +742,7 @@ async function mainRenderCalendar(){
       <div class="dow-row">${DOW.map((d,i)=>`<div class="${i===0?'sun':(i===6?'sat':'')}">${d}</div>`).join('')}</div>
       <div class="day-row">${cells}</div>
     </div>
-    <div class="legend"><span><i style="background:var(--amber)"></i>TV 일지</span><span><i style="background:var(--sun-red)"></i>라디오 일지</span></div>
+    <div class="legend"><span><i style="background:var(--amber: #e0a800)"></i>TV 일지</span><span><i style="background:var(--sun-red)"></i>라디오 일지</span></div>
     <div id="exportStatus" style="text-align:center;font-size:11px;color:var(--text-dim);padding:6px var(--pad) 0;min-height:14px;"></div>
   `;
 
