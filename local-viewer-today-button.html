@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>현업일지 로컬 백업 뷰어</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{ --amber:#1f7a5c; --line:#e2ddcf; --bg:#f2f0e8; --text:#23262b; --text-dim:#8b8a82; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; padding:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Malgun Gothic","Apple SD Gothic Neo",sans-serif; }
+
+  .toolbar { background:#17212c; color:#fff; padding:16px; position:sticky; top:0; z-index:20; }
+  .toolbar h1 { font-size:18px; margin:0 0 12px; }
+  .toolbar .row { display:flex; flex-direction:column; gap:8px; }
+  .toolbar input[type=file] { font-size:13px; color:#fff; }
+
+  .view-title { padding:14px 16px 4px; font-weight:800; font-size:15px; color:var(--text); display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .print-btn { flex:0 0 auto; background:#314d68; color:#fff; border:none; border-radius:8px; padding:8px 14px; font-size:12px; font-weight:700; cursor:pointer; }
+  .no-data-note { padding:8px 16px; color:var(--text-dim); font-size:13px; }
+
+  /* calendar section */
+  .cal-wrap {
+    background:transparent;
+    padding:0;
+    margin:0 12px 12px;
+    border:none;
+    box-shadow:none;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .cal-nav-box,
+  .cal-body-box {
+    background:#fff;
+    border:1px solid #d5dde4;
+    border-radius:12px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.04);
+    padding:14px;
+  }
+  .cal-nav-box {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-sizing:border-box;
+  }
+  .cal-nav-box .cal-nav2 {
+    width:100%;
+    margin:0;
+  }
+  .filter-row { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+  .filter-row label { font-size:12px; color:var(--text-dim); font-weight:700; }
+  .filter-row select { padding:9px 10px; border-radius:8px; border:1px solid var(--line); background:#fff; font-size:13px; color:var(--text); }
+  .cal-nav2 {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:0;
+    flex-wrap:nowrap;
+    white-space:nowrap;
+  }
+  .cal-nav2 .cal-nav-left {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    flex:1 1 auto;
+    min-width:0;
+  }
+  .cal-nav2 button {
+    width:32px;
+    height:auto;
+    border-radius:8px;
+    border:1px solid #b8c3cc;
+    background:#fff;
+    color:#314d68;
+    font-size:15px;
+    font-weight:700;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:8px 0;
+    flex:0 0 auto;
+    line-height:1.2;
+  }
+  .cal-nav2 .cal-month2 {
+    font-size:18px;
+    font-weight:700;
+    color:#314d68;
+    min-width:0;
+    text-align:center;
+    padding:0 6px;
+    border:none;
+    border-radius:0;
+    background:transparent;
+    box-shadow:none;
+    flex:0 1 auto;
+    white-space:nowrap;
+  }
+  .cal-nav2 .today-btn2 {
+    width:auto;
+    height:auto;
+    padding:8px 14px;
+    color:#1f7a5c;
+    font-size:13px;
+    font-weight:700;
+    border-radius:8px;
+    border:1px solid #b8c3cc;
+    background:#fff;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    line-height:1.2;
+    flex:0 0 auto;
+    white-space:nowrap;
+  }
+  .cal-nav2 .dash-btn2 {
+    width:auto;
+    height:auto;
+    padding:8px 14px;
+    border:none;
+    border-radius:8px;
+    background:#314d68;
+    color:#fff;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    line-height:1.2;
+    flex:0 0 auto;
+    white-space:nowrap;
+  }
+  .dow-row2 { display:grid; grid-template-columns:repeat(7,1fr); margin-bottom:6px; }
+  .dow-row2 div { text-align:center; font-size:11px; font-weight:700; color:var(--text-dim); }
+  .dow-row2 div.sun2 { color:#b3382c; }
+  .dow-row2 div.sat2 { color:#2b57a0; }
+  .day-row2 { display:grid; grid-template-columns:repeat(7,1fr); gap:clamp(2px, 1vw, 4px); }
+  .day-cell2 {
+    position:relative;
+    aspect-ratio:0.62;
+    min-height:clamp(48px, 13.5vw, 76px);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    border-radius:8px;
+    font-size:clamp(12px, 3.4vw, 15px);
+    background:var(--bg); border:1px solid var(--line); cursor:pointer; color:var(--text);
+  }
+  .day-cell2.blank2 { visibility:hidden; }
+  .day-cell2.today2 { border-color:var(--amber); border-width:2px; }
+  .day-cell2.selected2 { background:var(--amber); border-color:var(--amber); color:#fff; }
+  .day-cell2 .dots { display:flex; gap:3px; margin-top:3px; min-height:6px; }
+  .day-cell2 .dot-tv { width:7px; height:7px; border-radius:50%; background:#2b57a0; }
+  .day-cell2 .dot-radio { width:7px; height:7px; border-radius:50%; background:#c0392b; }
+  .cal-legend { display:flex; gap:14px; margin-top:8px; font-size:11px; color:var(--text-dim); align-items:center; flex-wrap:wrap; }
+  .cal-legend i { width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:4px; }
+  .cal-legend .lg-tv { background:#2b57a0; }
+  .cal-legend .lg-radio { background:#c0392b; }
+
+  /* mobile: calendar scales to phone screen size */
+  @media (max-width: 600px) {
+    .toolbar { padding:12px 12px 10px; }
+    .toolbar h1 { font-size:16px; margin:0 0 8px; }
+    .cal-wrap { padding:10px max(6px, 2vw) 14px; }
+    .cal-nav2 { margin-bottom:0; gap:6px; flex-wrap:nowrap; }
+    .cal-nav2 .cal-month2 { font-size:17px; font-weight:700; min-width:0; }
+    .cal-body-box { padding:14px; }
+    .cal-nav-box { padding:14px; }
+    .cal-nav2 .today-btn2,
+    .cal-nav2 .dash-btn2 { font-size:13px; padding:8px 12px; height:auto; }
+    .dow-row2 { margin-bottom:8px; }
+    .dow-row2 div { font-size:12px; padding:2px 0; }
+    .day-row2 { gap:clamp(2px, 1.2vw, 4px); }
+    .day-cell2 {
+      aspect-ratio:0.58;
+      min-height:clamp(52px, 14.5vw, 72px);
+      font-size:clamp(13px, 3.8vw, 16px);
+      font-weight:600;
+      border-radius:6px;
+    }
+    .day-cell2 .dots { margin-top:2px; }
+    .cal-legend { font-size:12px; gap:16px; margin-top:10px; justify-content:center; }
+  }
+  @media (max-width: 380px) {
+    .cal-nav2 { gap:4px; margin-bottom:0; flex-wrap:nowrap; }
+    .cal-nav-box { padding:14px; }
+    .cal-nav2 button { width:28px; height:auto; padding:8px 0; font-size:14px; }
+    .cal-nav2 .cal-month2 { font-size:16px; }
+    .cal-nav2 .today-btn2,
+    .cal-nav2 .dash-btn2 { height:auto; font-size:13px; padding:8px 10px; }
+    .day-cell2 { aspect-ratio:0.55; min-height:clamp(48px, 15vw, 64px); font-size:clamp(12px, 3.6vw, 14px); }
+  }
+
+/* =======================================================
+     TV현업일지 — scoped styles copied from uploaded file
+     ======================================================= */
+  .tv-import *{box-sizing:border-box}
+  .tv-import{background:#eef2f5;color:#202a33;font-family:"Malgun Gothic","Noto Sans KR",Arial,sans-serif;font-size:14px;}
+  .tv-import header{position:sticky;top:0;z-index:5;background:#314d68;color:#fff;padding:14px;box-shadow:0 2px 7px #0003}
+  .tv-import h1{margin:0;font-size:21px;font-weight:bold;}
+  .tv-import .wrap{max-width:900px;margin:auto;padding:8px}
+  .tv-import .card{background:#fff;margin:8px 0;border:1px solid #cbd4dc;border-radius:9px;overflow:hidden}
+  .tv-import .title{background:#e7edf2;padding:9px 11px;font-weight:bold;color:#29445b;border-bottom:1px solid #adb9c3}
+  .tv-import .sec{padding:9px}
+  .tv-import table{width:100%;border-collapse:collapse;table-layout:fixed}
+  .tv-import th,.tv-import td{border:1px solid #aeb8c1;padding:4px;text-align:center;vertical-align:middle;font-weight:400}
+  .tv-import th{background:#f3f6f8;font-size:14px;font-weight:600}
+  .tv-import td:first-child{background:#fafbfc;font-weight:600}
+  .tv-import td:not(:first-child){font-size:13px}
+  .tv-import input,.tv-import select,.tv-import textarea{width:100%;min-height:38px;border:1px solid #b8c3cc;border-radius:6px;padding:7px;font-size:14px;background:#fff}
+  .tv-import textarea{min-height:160px}
+  .tv-import .check{display:flex;justify-content:center;align-items:center;min-height:34px}
+  .tv-import .check input[type="checkbox"]{
+    appearance:none;-webkit-appearance:none;-moz-appearance:none;
+    width:24px;height:24px;min-width:24px;min-height:24px;padding:0;margin:0;
+    border:2px solid #b8c3cc;border-radius:5px;background-color:#fff;cursor:pointer;
+    background-repeat:no-repeat;background-position:center;background-size:15px 15px;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  .tv-import .check input[type="checkbox"]:checked{
+    background-color:#314d68;border-color:#314d68;
+    background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke="white" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+  }
+  .tv-import #tvForm.show-status .check input[type="checkbox"]:not(:checked){
+    background-color:#c0392b;border-color:#c0392b;
+    background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="white" stroke-width="3.4" fill="none" stroke-linecap="round"/></svg>');
+  }
+  .tv-import .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .tv-import .label{font-size:12px;font-weight:bold;color:#66737e;margin-bottom:3px}
+  .tv-import .bottom{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;padding:10px 0 4px}
+  .tv-import button{border:0;border-radius:7px;padding:12px;font-weight:bold;font-size:14px}
+  .tv-import .save{background:#314d68;color:white}
+  .tv-import .print{background:#314d68;color:#fff}
+  .tv-import .clear{background:#314d68;color:#fff}
+  @media(max-width:600px){
+    .tv-import table{font-size:14px}
+    .tv-import th,.tv-import td{padding:3px 2px}
+    .tv-import th{font-size:13px}
+    .tv-import td:not(:first-child){font-size:12px}
+    .tv-import input,.tv-import select{font-size:12px;padding:5px;min-height:35px}
+    .tv-import .grid{grid-template-columns:1fr}
+  }
+  .tv-import .yeonju-table .headend-label{vertical-align:middle;font-size:15px}
+  .tv-import .yeonju-table .imc-label{vertical-align:middle;font-size:13px;line-height:1.35}
+  .tv-import .yeonju-table .wide-mode{min-width:0;width:28%}
+  .tv-import .yeonju-table select{width:100%;min-width:0;max-width:100%;box-sizing:border-box;display:block}
+  @media(max-width:600px){
+    .tv-import .yeonju-table select{font-size:11px;padding:4px 2px}
+  }
+  .tv-import .yeonju-table td{overflow:hidden}
+  .tv-import .yeonju-table select[name="ymode"],
+  .tv-import .yeonju-table select[name="ysw"],
+  .tv-import .yeonju-table select[name="esw"],
+  .tv-import .yeonju-table select[name="gpssw"]{width:100% !important;min-width:0 !important;max-width:100% !important;margin:0 !important;box-sizing:border-box !important;}
+  .tv-import .time-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
+  .tv-import .time-item{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px}
+  .tv-import .time-item span{font-size:13px;font-weight:bold;white-space:nowrap;color:#4f5d68}
+  .tv-import .time-item input{min-width:0}
+  .tv-import .work-time-row{margin-top:8px}
+  @media(max-width:600px){
+    .tv-import .time-row{gap:6px}
+    .tv-import .time-item{grid-template-columns:auto 1fr;gap:4px}
+    .tv-import .time-item span{font-size:11px}
+  }
+  .tv-import .date-display{text-align:center;font-size:17px;font-weight:bold;color:#314d68;padding:0}
+  .tv-import .date-nav-row{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 4px 5px}
+  .tv-import .dow-inline{display:none}
+  .tv-import .dnbtn{width:34px;height:34px;flex:0 0 auto;border-radius:8px;border:1px solid #b8c3cc;background:#fff;color:#314d68;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1;padding:0}
+  .tv-import .todaybtn2{flex:0 0 auto;height:34px;padding:0 12px;border-radius:8px;border:1px solid #b8c3cc;background:#fff;color:#1f7a5c;font-size:13px;font-weight:700;white-space:nowrap}
+  .tv-import .yeonju-table .item-label{font-size:12px !important;font-weight:400 !important;line-height:1.15;}
+  .tv-import input[list]{width:100%;min-width:0;box-sizing:border-box;}
+  .tv-import .yeonju-table input[list]{font-size:11px;padding:4px 2px;min-height:35px;}
+  .tv-import td, .tv-import th, .tv-import td input, .tv-import td select, .tv-import td textarea, .tv-import input[list]{text-align:center;}
+  .tv-import .electrical-table{width:100%;border-collapse:collapse;table-layout:fixed;margin:0;}
+  .tv-import .electrical-table col{width:14.2857%}
+  .tv-import .electrical-table td:empty{background:#fff;}
+  .tv-import .electrical-table td{border:1px solid #aeb8c1;padding:4px;text-align:center;vertical-align:middle;font-weight:400;font-size:13px;background:#fff;line-height:1.25;word-break:keep-all;white-space:normal;}
+  .tv-import .electrical-table td:first-child{background:#fff;font-weight:400;}
+  .tv-import .electrical-table input:not([type="checkbox"]){width:100%;min-width:0;box-sizing:border-box;text-align:center;font-size:14px;}
+  .tv-import .electrical-table input[list]{font-size:12px;padding:5px;min-height:35px;}
+  .tv-import .electrical-table .environment-label{font-size:13px !important;font-weight:600 !important;line-height:1.35;word-break:keep-all;white-space:normal;}
+  @media(max-width:600px){
+    .tv-import .electrical-table td{font-size:12px;padding:3px 2px;line-height:1.25;}
+    .tv-import .electrical-table input:not([type="checkbox"]){font-size:12px;padding:5px;min-height:35px;}
+    .tv-import .electrical-table input[list]{font-size:11px;padding:4px 2px;min-height:35px;}
+  }
+  .tv-import .yeonju-table tr:nth-child(3) td:first-child{font-size:13px !important;font-weight:400 !important;}
+
+  
+/* =======================================================
+     라디오현업일지 — scoped styles copied from uploaded file
+     ======================================================= */
+  :root{
+    --r-navy:#314d68; --r-navy2:#45647f; --r-line:#b8c2cb; --r-bg:#eef2f5;
+    --r-card:#fff; --r-head:#e3eaf0; --r-sub:#f4f7f9; --r-text:#1e2933; --r-muted:#64717d;
+  }
+  .radio-import *{box-sizing:border-box}
+  .radio-import{background:var(--r-bg);font-family:"Malgun Gothic","Noto Sans KR",Arial,sans-serif;font-size:14px;color:var(--r-text);}
+  .radio-import header{position:sticky;top:0;z-index:5;background:#314d68;color:#fff;padding:14px;box-shadow:0 2px 7px #0003}
+  .radio-import header h1{margin:0;font-size:21px;font-weight:bold;}
+  .radio-import .container{max-width:760px;margin:auto;padding:10px}
+  .radio-import .card{background:var(--r-card);border:1px solid #d5dde4;border-radius:12px;margin:9px 0;overflow:hidden;box-shadow:0 1px 3px #0000000d}
+  .radio-import .card-title{background:var(--r-head);padding:10px 12px;font-weight:800;color:#28435b;border-bottom:1px solid var(--r-line);font-size:15px}
+  .radio-import .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:11px}
+  .radio-import .field label{display:block;font-size:12px;color:var(--r-muted);font-weight:700;margin:0 0 4px}
+  .radio-import input,.radio-import textarea,.radio-import select{width:100%;border:1px solid #b9c4cd;border-radius:7px;background:#fff;padding:10px 9px;font-size:15px;min-height:42px;color:var(--r-text);outline:none}
+  .radio-import input:focus,.radio-import textarea:focus,.radio-import select:focus{border-color:#537795;box-shadow:0 0 0 2px #53779522}
+  .radio-import textarea{min-height:160px;resize:vertical}
+  .radio-import .full{grid-column:1/-1}
+  .radio-import .section{padding:10px 11px}
+  .radio-import .subhead{font-weight:800;color:#344f67;background:var(--r-sub);border:1px solid var(--r-line);padding:8px;border-radius:7px 7px 0 0}
+  .radio-import table{width:100%;border-collapse:collapse;table-layout:fixed}
+  .radio-import th,.radio-import td{border:1px solid var(--r-line);padding:5px;text-align:center;vertical-align:middle}
+  .radio-import th{background:var(--r-sub);font-size:12px;color:#3d4e5c}
+  .radio-import td:first-child{font-weight:700;background:#fafbfc}
+  .radio-import td input, .radio-import td select{min-height:36px;padding:6px;font-size:14px;border-radius:5px;text-align:center}
+  .radio-import .check{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:38px;width:100%;cursor:pointer}
+  .radio-import .check input[type="checkbox"]{
+    appearance:none;-webkit-appearance:none;-moz-appearance:none;
+    width:23px;height:23px;min-width:23px;min-height:23px;padding:0;margin:0;
+    border:2px solid #b9c4cd;border-radius:5px;background-color:#fff;cursor:pointer;
+    background-repeat:no-repeat;background-position:center;background-size:14px 14px;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  .radio-import .check input[type="checkbox"]:checked{
+    background-color:var(--r-navy);border-color:var(--r-navy);
+    background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke="white" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+  }
+  .radio-import #radioForm.show-status .check input[type="checkbox"]:not(:checked){
+    background-color:#c0392b;border-color:#c0392b;
+    background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="white" stroke-width="3.4" fill="none" stroke-linecap="round"/></svg>');
+  }
+  /* PIC card checkboxes represent equipment selection, not normal/abnormal status — exclude from red-X flag */
+  .radio-import #radioForm.show-status #picCard .check input[type="checkbox"]:not(:checked){
+    background-color:#fff;border-color:#b9c4cd;background-image:none;
+  }
+  .radio-import .btnbar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;padding:10px 0 4px}
+  .radio-import button{border:0;border-radius:8px;padding:12px 8px;font-weight:800;font-size:14px;cursor:pointer}
+  .radio-import .save{background:var(--r-navy);color:#fff}
+  .radio-import .print{background:var(--r-navy);color:#fff}
+  .radio-import .clear{background:var(--r-navy);color:#fff}
+  @media(max-width:520px){
+    .radio-import .grid{grid-template-columns:1fr}
+    .radio-import table{font-size:12px}
+    .radio-import th,.radio-import td{padding:4px 2px}
+    .radio-import td input{font-size:13px;padding:5px}
+  }
+  .radio-import .merged-net{vertical-align:middle !important;text-align:center !important;line-height:1.5;}
+  .radio-import .date-display{text-align:center;font-size:17px;font-weight:bold;color:#314d68;padding:0}
+  .radio-import .date-nav-row{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 4px 5px}
+  .radio-import .dow-inline{display:none}
+  .radio-import .dnbtn{width:34px;height:34px;flex:0 0 auto;border-radius:8px;border:1px solid #b9c4cd;background:#fff;color:#314d68;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1;padding:0}
+  .radio-import .todaybtn2{flex:0 0 auto;height:34px;padding:0 12px;border-radius:8px;border:1px solid #b9c4cd;background:#fff;color:#1f7a5c;font-size:13px;font-weight:700;white-space:nowrap}
+
+
+  /* read-only overrides for this viewer */
+  input:disabled:not([type="checkbox"]), textarea:disabled, select:disabled {
+    background:transparent !important; border-color:transparent !important;
+    color:#202a33 !important; -webkit-text-fill-color:#202a33 !important; opacity:1 !important;
+  }
+  .tv-import .check input[type="checkbox"]:disabled,
+  .radio-import .check input[type="checkbox"]:disabled {
+    opacity:1 !important; cursor:default;
+  }
+  /* viewer-only: true = green check (keep the checkmark icon, only recolor the fill) */
+  .tv-import .check input[type="checkbox"]:checked,
+  .radio-import .check input[type="checkbox"]:checked {
+    background-color:#1f7a5c !important; border-color:#1f7a5c !important;
+  }
+  .tv-import, .radio-import { display:none; }
+  .tv-import.show, .radio-import.show { display:block; }
+
+  /* dashboard button next to filter */
+  .filter-row .filter-actions {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .filter-row .filter-actions select { flex: 1; }
+  .dash-btn {
+    flex: 0 0 auto;
+    padding: 9px 14px;
+    border-radius: 8px;
+    border: none;
+    background: #314d68;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .dash-btn:active { opacity: 0.85; }
+
+  /* ===== Dashboard styles ===== */
+  #dashSection { display: none; }
+  #dashSection.show { display: block; }
+  .dash-container { max-width: 1100px; margin: 0 auto; padding: 12px; }
+  .dash-card {
+    background: #fff;
+    border: 1px solid #d5dde4;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .dash-card-title {
+    font-weight: 800;
+    font-size: 14px;
+    color: #314d68;
+    margin: 0 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .dash-filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  @media (min-width: 640px) {
+    .dash-filters { grid-template-columns: repeat(4, 1fr); }
+  }
+  .dash-filters label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #64717d;
+    margin-bottom: 4px;
+  }
+  .dash-filters select, .dash-filters input {
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid #d5dde4;
+    background: #fff;
+    font-size: 13px;
+  }
+  .dash-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  @media (min-width: 640px) {
+    .dash-stats { grid-template-columns: repeat(4, 1fr); }
+  }
+  .dash-stat {
+    background: #f7f9fb;
+    border: 1px solid #d5dde4;
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+  }
+  .dash-stat .label { font-size: 11px; color: #64717d; font-weight: 700; margin-bottom: 4px; }
+  .dash-stat .value { font-size: 20px; font-weight: 800; color: #314d68; }
+  .dash-chart-wrap { position: relative; height: 280px; }
+  @media (min-width: 640px) {
+    .dash-chart-wrap { height: 340px; }
+  }
+  .metric-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+  .metric-chip {
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid #d5dde4;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #1e2933;
+  }
+  .metric-chip.active { background: #314d68; color: #fff; border-color: #314d68; }
+  .metric-chip.tv-chip.active { background: #2b57a0; border-color: #2b57a0; }
+  .metric-chip.radio-chip.active { background: #c0392b; border-color: #c0392b; }
+
+  /* ===== 항목 선택기 (분류 → 세부항목) ===== */
+  .picker button:focus-visible { outline:2px solid #2b57a0; outline-offset:2px; }
+  .picker-current {
+    display:flex; align-items:baseline; gap:8px;
+    padding:9px 12px; margin-bottom:12px;
+    background:#f7f9fb; border:1px solid #d5dde4; border-radius:10px; font-size:13px;
+  }
+  .picker-current .pc-label { flex:0 0 auto; font-size:11px; font-weight:700; color:#64717d; }
+  .picker-current .pc-value { min-width:0; font-weight:800; color:#1e2933; overflow-wrap:anywhere; }
+  .picker-group-row { display:flex; align-items:flex-start; gap:8px; margin-bottom:8px; }
+  .picker-group { flex:0 0 46px; padding-top:8px; font-size:11px; font-weight:800; }
+  .picker-group.tv { color:#2b57a0; }
+  .picker-group.radio { color:#c0392b; }
+  .picker-cats { display:flex; flex-wrap:wrap; gap:6px; min-width:0; }
+  .picker-cat {
+    position:relative;
+    padding:7px 9px; border-radius:8px;
+    border:1px solid #d5dde4; background:#fff;
+    font-size:13px; font-weight:700; color:#314d68; cursor:pointer;
+  }
+  .picker-cat.active { background:#eef2f5; border-color:#314d68; box-shadow:inset 0 -2px 0 #314d68; }
+  .picker-cat.has-sel:not(.active)::after {
+    content:''; position:absolute; top:4px; right:4px;
+    width:6px; height:6px; border-radius:50%; background:#2b57a0;
+  }
+  .picker-cat.radio-cat.has-sel:not(.active)::after { background:#c0392b; }
+  .picker-body {
+    margin-top:12px; padding-top:12px; border-top:1px solid #e8eef3;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .picker-row { display:grid; grid-template-columns:76px 1fr; gap:8px; align-items:center; }
+  .picker-row.no-sub { grid-template-columns:1fr; }
+  .picker-sub { font-size:12px; font-weight:700; color:#64717d; }
+  .picker-chips { display:flex; flex-wrap:wrap; gap:6px; min-width:0; }
+  .picker .metric-chip { padding:7px 14px; }
+  .dash-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .compare-box {
+    background: #f7f9fb;
+    border-radius: 10px;
+    padding: 12px;
+    border: 1px solid #d5dde4;
+  }
+  .compare-box h4 { margin: 0 0 8px; font-size: 12px; color: #64717d; }
+  .compare-box .big { font-size: 18px; font-weight: 800; }
+  .delta-up { color: #c0392b; }
+  .delta-down { color: #1f7a5c; }
+  .delta-same { color: #64717d; }
+  .dash-table-wrap { overflow-x: auto; max-height: 320px; }
+  table.dash-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.dash-table th, table.dash-table td {
+    border: 1px solid #d5dde4;
+    padding: 6px 8px;
+    text-align: center;
+  }
+  table.dash-table th {
+    background: #eef2f5;
+    font-weight: 700;
+    position: sticky;
+    top: 0;
+  }
+  table.dash-table tr:nth-child(even) { background: #fafbfc; }
+  .home-btn {
+    background: #314d68;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dash-hidden { display: none !important; }
+  .dash-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .dash-tab {
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 1px solid #d5dde4;
+    background: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    color: #314d68;
+  }
+  .dash-tab.active {
+    background: #314d68;
+    color: #fff;
+    border-color: #314d68;
+  }
+  .dash-panel { display: none; }
+  .dash-panel.active { display: block; }
+  .fault-tag {
+    display: inline-block;
+    background: #fdecea;
+    color: #c0392b;
+    border-radius: 6px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 700;
+    margin: 2px;
+  }
+  .memo-box {
+    background: #f7f9fb;
+    border: 1px solid #d5dde4;
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 6px;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .memo-date {
+    font-weight: 800;
+    color: #314d68;
+    font-size: 13px;
+  }
+  .memo-item {
+    border-bottom: 1px solid #e8eef3;
+    padding: 12px 0;
+  }
+  .memo-item:last-child { border-bottom: none; }
+  .sel-tag {
+    display: inline-block;
+    background: #e8f0fe;
+    color: #2b57a0;
+    border-radius: 6px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 700;
+    margin: 2px;
+  }
+
+  @media print {
+    .toolbar, .cal-wrap, .print-btn, #dashSection, .dash-btn, .home-btn { display:none !important; }
+    body { background:#fff !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>현업일지 로컬 백업 뷰어 (오프라인)</h1>
+  <div class="row">
+    <input type="file" id="fileInput" accept="application/json">
+  </div>
+</div>
+
+<div class="cal-wrap" id="calWrap" style="display:none;">
+  <div class="cal-nav-box">
+    <div class="cal-nav2">
+      <div class="cal-nav-left">
+        <button id="calPrev">‹</button>
+        <div class="cal-month2" id="calMonthLabel"></div>
+        <button id="calNext">›</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex:0 0 auto;">
+        <button type="button" class="today-btn2" id="todayBtn">오늘</button>
+        <button type="button" class="dash-btn2" id="openDashBtn">대시보드</button>
+      </div>
+    </div>
+  </div>
+  <div class="cal-body-box">
+    <div class="dow-row2">
+      <div class="sun2">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div class="sat2">토</div>
+    </div>
+    <div class="day-row2" id="calGrid"></div>
+    <div class="cal-legend">
+      <span><i class="lg-tv"></i>TV</span>
+      <span><i class="lg-radio"></i>RADIO</span>
+    </div>
+  </div>
+</div>
+
+<div class="view-title" id="viewTitle"></div>
+<div style="padding:0 16px;" id="printBtnWrap"></div>
+
+<div class="tv-import" id="tvSection">
+  <header><h1>TV 현업일지</h1></header>
+  <div class="wrap">
+    <form id="tvForm">
+        <div class="card"><div class="title">근무자</div><div class="sec"><table>
+        <thead><tr><th>근무자</th><th>일근</th><th>야근</th><th>조근</th></tr></thead><tbody>
+        <tr><td>TD</td><td><input list="tdList" name="td1" autocomplete="off"></td><td><input list="tdList" name="td2" autocomplete="off"></td><td><input list="tdList" name="td3" autocomplete="off"></td></tr>
+        <tr><td>AUD</td><td><input list="audList" name="aud1" autocomplete="off"></td><td><input list="audList" name="aud2" autocomplete="off"></td><td><input list="audList" name="aud3" autocomplete="off"></td></tr>
+        <tr><td>MD</td><td><input list="mdList" name="md1" autocomplete="off"></td><td><input list="mdList" name="md2" autocomplete="off"></td><td><input list="mdList" name="md3" autocomplete="off"></td></tr>
+        <tr><td>CG</td><td><input list="cgList" name="cg1" autocomplete="off"></td><td><input list="cgList" name="cg2" autocomplete="off"></td><td><input list="cgList" name="cg3" autocomplete="off"></td></tr>
+        </tbody></table>
+        <div class="time-row work-time-row">
+          <div class="time-item"><span>방송개시시간</span><input type="time" name="start"></div>
+          <div class="time-item"><span>방송종료시간</span><input type="time" name="end"></div>
+        </div>
+        </div></div>
+
+        <div class="card"><div class="title">연주소</div><div class="sec">
+        <table class="yeonju-table"><tbody>
+        <tr><td rowspan="4" class="headend-label">Head<br>End</td><td>무순단<br>모드</td><td>무순단<br>S/W</td><td>엔코더<br>S/W</td><td>엔코더<br>1</td><td>엔코더<br>2</td><td>엔코더<br>3</td></tr>
+        <tr><td><input name="ymode" list="list-ymode" autocomplete="off" placeholder=""></td><td><input name="ysw" list="list-ysw" autocomplete="off" placeholder=""></td><td><input name="esw" list="list-esw" autocomplete="off" placeholder=""></td><td><label class="check"><input type="checkbox" name="enc1"></label></td><td><label class="check"><input type="checkbox" name="enc2"></label></td><td><label class="check"><input type="checkbox" name="enc3"></label></td></tr>
+        <tr><td>Sync<br>(주)</td><td>Sync<br>(예)</td><td>자막<br>코더(주)</td><td>자막<br>코더(예)</td><td>라우드니스</td><td></td></tr>
+        <tr><td><label class="check"><input type="checkbox" name="sync1"></label></td><td><label class="check"><input type="checkbox" name="sync2"></label></td><td><label class="check"><input type="checkbox" name="cap1"></label></td><td><label class="check"><input type="checkbox" name="cap2"></label></td><td><label class="check"><input type="checkbox" name="loud"></label></td><td></td></tr>
+        <tr><td rowspan="4" class="imc-label">IMC<br>시스템</td><td>NDD<br>(주)</td><td>NDD<br>(예)</td><td>IMCO<br>(주)</td><td>IMCO<br>(예)</td><td>PSIP<br>(주)</td><td>PSIP<br>(예)</td></tr>
+        <tr><td><label class="check"><input type="checkbox" name="ndd1"></label></td><td><label class="check"><input type="checkbox" name="ndd2"></label></td><td><label class="check"><input type="checkbox" name="imco1"></label></td><td><label class="check"><input type="checkbox" name="imco2"></label></td><td><label class="check"><input type="checkbox" name="psip1"></label></td><td><label class="check"><input type="checkbox" name="psip2"></label></td></tr>
+        <tr><td class="item-label">DMC<br>(주)</td><td>DMC<br>(예)</td><td>GPS<br>S/W</td><td>GPS<br>(주)</td><td>GPS<br>(예)</td><td>DB서버</td></tr>
+        <tr><td><label class="check"><input type="checkbox" name="dmc1"></label></td><td><label class="check"><input type="checkbox" name="dmc2"></label></td><td><input name="gpssw" list="list-gpssw" autocomplete="off" placeholder=""></td><td><label class="check"><input type="checkbox" name="gps1"></label></td><td><label class="check"><input type="checkbox" name="gps2"></label></td><td><label class="check"><input type="checkbox" name="db"></label></td></tr>
+        <tr><td rowspan="2">M/W<br>DMB</td><td>M/W<br>6G</td><td>M/W<br>11G</td><td>M/W PS<br>전압</td><td>M/W PS<br>전류</td><td>DMB MUX<br>(주)</td><td>DMB MUX<br>(예)</td></tr>
+        <tr><td><label class="check"><input type="checkbox" name="mw6"></label></td><td><label class="check"><input type="checkbox" name="mw11"></label></td><td><input name="mwv"></td><td><input name="mwa"></td><td><label class="check"><input type="checkbox" name="mux1"></label></td><td><label class="check"><input type="checkbox" name="mux2"></label></td></tr>
+        </tbody></table></div></div>
+
+        <div class="card break-page"><div class="title">전기 환경</div><div class="sec"><table class="electrical-table"><colgroup><col><col><col><col><col><col><col></colgroup><tbody><tr><td rowspan="6" class="environment-label">전기<br>환경</td><td>UPS실 전압 R</td><td>UPS실 전압 S</td><td>UPS실 전압 T</td><td>UPS실 전류 R</td><td>UPS실 전류 S</td><td>UPS실 전류 T</td></tr><tr><td><input name="upsVr"></td><td><input name="upsVs"></td><td><input name="upsVt"></td><td><input name="upsAr"></td><td><input name="upsAs"></td><td><input name="upsAt"></td></tr><tr><td>R UPS(%)</td><td>TV UPS(%)</td><td>조명 UPS(%)</td><td>UPS실 온도</td><td>기계실 PDP1 전압</td><td>기계실 PDP1 전류</td></tr><tr><td><input name="rups"></td><td><input name="tvups"></td><td><input name="lightups"></td><td><input name="upstemp"></td><td><input name="pdp1v"></td><td><input name="pdp1a"></td></tr><tr><td>ATS S/W</td><td>기계실 PDP2 전류</td><td>기계실 온도</td><td></td><td></td><td></td></tr><tr><td><input name="ats" list="list-ats" autocomplete="off" placeholder=""></td><td><input name="pdp2a"></td><td><input name="machtemp"></td><td></td><td></td><td></td></tr></tbody></table></div></div>
+
+        <div class="card"><div class="title">대룡산 송신소</div><div class="sec">
+        <table><tbody>
+        <tr><td rowspan="2">DTV</td><th>송신기</th><th>출력</th><th>REF</th><th>PIC</th><th>원격제어</th></tr>
+        <tr><td><input name="dtvtx" list="list-dtvtx" autocomplete="off" placeholder=""></td><td><input name="dtvp"></td><td><input name="dtvr"></td><td><input name="dtvpic" list="list-dtvpic" autocomplete="off" placeholder=""></td><td><label class="check"><input type="checkbox" name="dtvremote"></label></td></tr>
+        <tr><td>DMB</td><td><input name="dmbtx" list="list-dmbtx" autocomplete="off" placeholder=""></td><td><input name="dmbp"></td><td><input name="dmbr"></td><td><input name="dmbpic" list="list-dmbpic" autocomplete="off" placeholder=""></td><td><label class="check"><input type="checkbox" name="dmbremote"></label></td></tr>
+        <tr><td rowspan="2">한전전압</td><td>R</td><td>S</td><td>T</td><td>발전기</td><td></td></tr>
+        <tr><td><input name="dr"></td><td><input name="ds"></td><td><input name="dt"></td><td><label class="check"><input type="checkbox" name="dg1"></label></td><td></td></tr>
+        <tr><td rowspan="2">UPS<br>전압</td><td>R</td><td>S</td><td>T</td><td></td><td></td></tr>
+        <tr><td><input name="dupsr"></td><td><input name="dupss"></td><td><input name="dupst"></td><td></td><td></td></tr>
+        <tr><td rowspan="2">기타</td><td>기계실<br>온도</td><td>발전실<br>온도</td><td>통신상태(주)</td><td>통신상태(예)</td><td></td></tr>
+        <tr><td><input name="dtemp1"></td><td><input name="dtemp2"></td><td><label class="check"><input type="checkbox" name="dcomm1"></label></td><td><label class="check"><input type="checkbox" name="dcomm2"></label></td><td></td></tr>
+        </tbody></table></div></div>
+
+        <div class="card"><div class="title">화악산 송신소</div><div class="sec">
+        <table><tbody>
+        <tr><td rowspan="2">DTV</td><th>송신기</th><th>출력</th><th>REF</th><th>PIC</th><th>원격제어</th></tr>
+        <tr><td><input name="htx" list="list-htx" autocomplete="off" placeholder=""></td><td><input name="hp"></td><td><input name="hr"></td><td><input name="hpic" list="list-hpic" autocomplete="off" placeholder=""></td><td><label class="check"><input type="checkbox" name="hremote"></label></td></tr>
+        <tr><td rowspan="2">한전전압</td><td>R</td><td>S</td><td>T</td><td>발전기(주)</td><td>발전기(예)</td></tr>
+        <tr><td><input name="hr1"></td><td><input name="hs"></td><td><input name="ht"></td><td><label class="check"><input type="checkbox" name="hg1"></label></td><td><label class="check"><input type="checkbox" name="hg2"></label></td></tr>
+        <tr class="break-page-row"><td rowspan="2">기타</td><td>UPS전압</td><td>전기실<br>온도</td><td>송신실<br>온도</td><td>통신상태(주)</td><td>통신상태(예)</td></tr>
+        <tr><td><input name="hups"></td><td><input name="het"></td><td><input name="htt"></td><td><label class="check"><input type="checkbox" name="hc1"></label></td><td><label class="check"><input type="checkbox" name="hc2"></label></td></tr>
+        </tbody></table></div></div>
+
+        <div class="card"><div class="title">기타 전달사항</div><div class="sec"><textarea name="memo"></textarea></div></div>
+        </form>
+  </div>
+</div>
+
+<div class="radio-import" id="radioSection">
+  <header><h1>RADIO 현업일지</h1></header>
+  <main class="container">
+    <form id="radioForm">
+        <div class="card">
+          <div class="card-title">근무자</div>
+          <div class="grid">
+            <div class="field full">
+              <input name="worker" list="radioWorkerList" autocomplete="off" placeholder="근무자 선택 또는 직접 입력">
+              <datalist id="radioWorkerList">
+                <option value="안경재"><option value="김정림"><option value="김영훈"><option value="신성원">
+              </datalist>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+        <div class="card-title">송신소 점검</div>
+        <div class="section">
+        <table>
+        <thead><tr><th>구분</th><th>송신기</th><th>출력</th><th>REF</th><th>PIC 상태</th><th>원격 제어</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>표준FM</td>
+          <td><input name="std_tx" list="txList" autocomplete="off"></td>
+          <td><input name="std_power"></td>
+          <td><input name="std_ref"></td>
+          <td><input name="std_pic" list="picList" autocomplete="off"></td>
+          <td><label class="check"><input type="checkbox" name="std_remote"></label></td>
+        </tr>
+        <tr>
+          <td>음악FM</td>
+          <td><input name="music_tx" list="txList" autocomplete="off"></td>
+          <td><input name="music_power"></td>
+          <td><input name="music_ref"></td>
+          <td><input name="music_pic" list="picList" autocomplete="off"></td>
+          <td><label class="check"><input type="checkbox" name="music_remote"></label></td>
+        </tr>
+        </tbody>
+        </table>
+        <datalist id="txList"><option value="A"><option value="B"></datalist>
+        <datalist id="picList"><option value="1"><option value="2"><option value="3"></datalist>
+        </div>
+
+        <div class="section">
+        <div class="subhead">UPS & 환경</div>
+        <table>
+        <thead><tr><th>상</th><th>입력전압</th><th>출력전압</th><th>부하량</th><th>온도</th></tr></thead>
+        <tbody>
+        <tr><td>R</td><td><input name="ups_r_in"></td><td><input name="ups_r_out"></td><td><input name="ups_r_load"></td><td rowspan="3"><input name="ups_temp"></td></tr>
+        <tr><td>S</td><td><input name="ups_s_in"></td><td><input name="ups_s_out"></td><td><input name="ups_s_load"></td></tr>
+        <tr><td>T</td><td><input name="ups_t_in"></td><td><input name="ups_t_out"></td><td><input name="ups_t_load"></td></tr>
+        </tbody>
+        </table>
+        </div>
+        </div>
+
+        <div class="card">
+        <div class="card-title">NET 및 도권망</div>
+        <div class="section">
+        <table>
+        <thead>
+        <tr>
+          <th>항목</th>
+          <th rowspan="2" class="merged-net">NET<br>통합망</th>
+          <th>표준FM<br>주/예</th>
+          <th>음악FM<br>주/예</th>
+          <th rowspan="2" class="merged-net">IP<br>CODEC</th>
+          <th>표준FM<br>주/예</th>
+          <th>음악FM<br>주/예</th>
+        </tr>
+        <tr>
+          <th>상태</th>
+          <th><label class="check"><input type="checkbox" name="net_std"></label></th>
+          <th><label class="check"><input type="checkbox" name="net_music"></label></th>
+          <th><label class="check"><input type="checkbox" name="codec_std"></label></th>
+          <th><label class="check"><input type="checkbox" name="codec_music"></label></th>
+        </tr>
+        </thead>
+        </table>
+        <br>
+        <table>
+        <thead>
+          <tr>
+            <th>항목</th>
+            <th rowspan="2" class="merged-net">도권망</th>
+            <th>강릉(상)<br>주/예</th>
+            <th>강릉(하)<br>주/예</th>
+            <th>원주(상)<br>주/예</th>
+            <th>원주(하)<br>주/예</th>
+          </tr>
+          <tr>
+            <th>상태</th>
+            <td><label class="check"><input type="checkbox" name="gang_upper"></label></td>
+            <td><label class="check"><input type="checkbox" name="gang_lower"></label></td>
+            <td><label class="check"><input type="checkbox" name="wonju_upper"></label></td>
+            <td><label class="check"><input type="checkbox" name="wonju_lower"></label></td>
+          </tr>
+        </thead>
+        </table>
+        </div>
+        </div>
+
+        <div class="card break-page" id="picCard">
+        <div class="card-title">PIC</div>
+        <div class="section">
+        <table>
+        <thead><tr><th>구분</th><th>PGM</th><th>R/S</th><th>NET</th><th>Bypass</th></tr></thead>
+        <tbody>
+        <tr><td>표준FM</td><td><label class="check"><input type="checkbox" name="pic_std_pgm"></label></td><td><label class="check"><input type="checkbox" name="pic_std_rs"></label></td><td><label class="check"><input type="checkbox" name="pic_std_net"></label></td><td><label class="check"><input type="checkbox" name="pic_std_bypass"></label></td></tr>
+        <tr><td>음악FM</td><td><label class="check"><input type="checkbox" name="pic_music_pgm"></label></td><td><label class="check"><input type="checkbox" name="pic_music_rs"></label></td><td><label class="check"><input type="checkbox" name="pic_music_net"></label></td><td><label class="check"><input type="checkbox" name="pic_music_bypass"></label></td></tr>
+        </tbody>
+        </table>
+        </div>
+        </div>
+
+        <div class="card">
+        <div class="card-title">STL</div>
+        <div class="section">
+        <table>
+        <thead><tr><th>매체</th><th>FWD PWR</th><th>REV PWR</th><th>VC01</th><th>VC02</th></tr></thead>
+        <tbody><tr><td>4CH 예비</td><td><input name="fwd_pwr"></td><td><input name="rev_pwr"></td><td><input name="vc01"></td><td><input name="vc02"></td></tr></tbody>
+        </table>
+        </div>
+        </div>
+
+        <div class="card">
+        <div class="card-title">AI AUTO PLAYER</div>
+        <div class="section">
+        <table>
+        <thead><tr><th>동작상태</th><th>AUTO PLAYER 주</th><th>AUTO PLAYER 예비</th></tr></thead>
+        <tbody><tr><td>상태</td><td><label class="check"><input type="checkbox" name="auto_main"></label></td><td><label class="check"><input type="checkbox" name="auto_backup"></label></td></tr></tbody>
+        </table>
+        </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">기기실 PDB</div>
+          <div class="section">
+            <table>
+              <thead><tr><th>전압(V)</th><th>전류(R)</th><th>전류(T)</th><th>위치</th><th>온도</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><input name="pdb_voltage"></td>
+                  <td><input name="pdb_current_r"></td>
+                  <td><input name="pdb_current_t"></td>
+                  <td><input name="pdb_position" list="pdbPositionList" autocomplete="off"></td>
+                  <td><input name="pdb_temp"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <datalist id="pdbPositionList"><option value="Radio"><option value="TV"></datalist>
+
+        <div class="card">
+        <div class="card-title">MCM 점검사항</div>
+        <div class="section">
+        <table>
+        <thead><tr><th>구분</th><th>동작상태</th><th>캐쉬상태</th></tr></thead>
+        <tbody>
+        <tr><td>표준FM</td><td><label class="check"><input type="checkbox" name="mcm_std_run"></label></td><td><label class="check"><input type="checkbox" name="mcm_std_cache"></label></td></tr>
+        <tr><td>음악FM</td><td><label class="check"><input type="checkbox" name="mcm_music_run"></label></td><td><label class="check"><input type="checkbox" name="mcm_music_cache"></label></td></tr>
+        </tbody>
+        </table>
+        </div>
+        </div>
+
+        <div class="card break-page">
+        <div class="card-title">기타 전달사항</div>
+        <div class="section"><textarea name="other"></textarea></div>
+        </div>
+        </form>
+  </main>
+</div>
+<div class="no-data-note" id="noDataNote" style="display:none;">이 날짜에는 저장된 기록이 없습니다.</div>
+
+<!-- ===== Analysis Dashboard ===== -->
+<div id="dashSection">
+  <div class="dash-container">
+    <div class="dash-card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <div class="dash-card-title" style="margin:0;font-size:20px;">분석 대시보드</div>
+      <button type="button" class="home-btn" id="homeBtn">현업일지</button>
+    </div>
+
+    <div class="dash-tabs">
+      <button type="button" class="dash-tab active" data-tab="numeric">수치 분석</button>
+      <button type="button" class="dash-tab" data-tab="mode">설정·모드</button>
+      <button type="button" class="dash-tab" data-tab="fault">상태·이상</button>
+      <button type="button" class="dash-tab" data-tab="memo">전달사항</button>
+    </div>
+
+    <!-- 공통 기간 필터 -->
+    <div class="dash-card">
+      <div class="dash-card-title">기간 · 대상 선택</div>
+      <div class="dash-filters">
+        <div>
+          <label>기간</label>
+          <select id="dashPeriod">
+            <option value="all">전체</option>
+            <option value="30">최근 30일</option>
+            <option value="7">최근 7일</option>
+            <option value="thisMonth">이번 달</option>
+            <option value="lastMonth">지난 달</option>
+            <option value="custom">직접 지정</option>
+          </select>
+        </div>
+        <div>
+          <label>대상</label>
+          <select id="dashSource">
+            <option value="both">TV + RADIO</option>
+            <option value="tv">TV만</option>
+            <option value="radio">RADIO만</option>
+          </select>
+        </div>
+        <div id="dashFromWrap" class="dash-hidden">
+          <label>시작일</label>
+          <input type="date" id="dashFrom">
+        </div>
+        <div id="dashToWrap" class="dash-hidden">
+          <label>종료일</label>
+          <input type="date" id="dashTo">
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: 수치 분석 -->
+    <div class="dash-panel active" id="panel-numeric">
+      <div class="dash-card">
+        <div class="dash-card-title">분석 항목 선택</div>
+        <div class="picker" id="dashMetricList"></div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-title">
+          <span id="dashStatTitle">요약 통계</span>
+          <span style="font-size:12px;font-weight:600;color:#64717d;" id="dashStatCount"></span>
+        </div>
+        <div class="dash-stats">
+          <div class="dash-stat"><div class="label">평균</div><div class="value" id="dashAvg">-</div></div>
+          <div class="dash-stat"><div class="label">최대</div><div class="value" id="dashMax">-</div></div>
+          <div class="dash-stat"><div class="label">최소</div><div class="value" id="dashMin">-</div></div>
+          <div class="dash-stat"><div class="label">표준편차</div><div class="value" id="dashStd">-</div></div>
+        </div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-title">추이 그래프</div>
+        <div class="dash-chart-wrap"><canvas id="dashChart"></canvas></div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-title">기간 비교 (현재 vs 직전 동일 기간)</div>
+        <div class="dash-compare">
+          <div class="compare-box"><h4>현재 기간 평균</h4><div class="big" id="dashCmpCur">-</div></div>
+          <div class="compare-box"><h4>직전 기간 평균</h4><div class="big" id="dashCmpPrev">-</div></div>
+          <div class="compare-box"><h4>변화량</h4><div class="big" id="dashCmpDelta">-</div></div>
+          <div class="compare-box"><h4>변화율</h4><div class="big" id="dashCmpPct">-</div></div>
+        </div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-title">일자별 데이터</div>
+        <div class="dash-table-wrap">
+          <table class="dash-table">
+            <thead><tr><th>날짜</th><th>값</th></tr></thead>
+            <tbody id="dashTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: 상태·이상 -->
+    <div class="dash-panel" id="panel-fault">
+      <div class="dash-card">
+        <div class="dash-card-title">이상 요약</div>
+        <div class="dash-stats">
+          <div class="dash-stat"><div class="label">이상 발생 일수</div><div class="value" id="faultDayCount">-</div></div>
+          <div class="dash-stat"><div class="label">총 이상 건수</div><div class="value" id="faultTotalCount">-</div></div>
+          <div class="dash-stat"><div class="label">가장 잦은 이상</div><div class="value" id="faultTopItem" style="font-size:13px;">-</div></div>
+        </div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-title">이상 항목 Top (상태 체크 false)</div>
+        <div class="dash-table-wrap">
+          <table class="dash-table">
+            <thead><tr><th>순위</th><th>구분</th><th>항목</th><th>이상 횟수</th></tr></thead>
+            <tbody id="faultTopBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-title">일자별 이상 내역</div>
+        <div class="dash-table-wrap">
+          <table class="dash-table">
+            <thead><tr><th>날짜</th><th>이상 항목</th></tr></thead>
+            <tbody id="faultDayBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: 설정·모드 -->
+    <div class="dash-panel" id="panel-mode">
+      <div class="dash-card">
+        <div class="dash-card-title">항목 선택</div>
+        <div class="picker" id="modeMetricList"></div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-title">
+          <span id="modeStatTitle">값 분포</span>
+          <span style="font-size:12px;font-weight:600;color:#64717d;" id="modeStatCount"></span>
+        </div>
+        <div class="dash-table-wrap">
+          <table class="dash-table">
+            <thead><tr><th>값</th><th>횟수</th><th>비율</th></tr></thead>
+            <tbody id="modeDistBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-title">값 변경 이력</div>
+        <div class="dash-table-wrap">
+          <table class="dash-table">
+            <thead><tr><th>날짜</th><th>이전 값</th><th>변경 후</th></tr></thead>
+            <tbody id="modeChangeBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-title">일자별 값</div>
+        <div class="dash-table-wrap">
+          <table class="dash-table">
+            <thead><tr><th>날짜</th><th>값</th></tr></thead>
+            <tbody id="modeDayBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: 전달사항 -->
+    <div class="dash-panel" id="panel-memo">
+      <div class="dash-card">
+        <div class="dash-card-title">검색</div>
+        <input type="text" id="memoSearch" placeholder="키워드 검색 (예: 고장, 교체, 정전)" style="width:100%;padding:10px;border:1px solid #d5dde4;border-radius:8px;font-size:14px;">
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-title">
+          <span>전달사항 목록</span>
+          <span style="font-size:12px;font-weight:600;color:#64717d;" id="memoCount"></span>
+        </div>
+        <div id="memoList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let backup = null;
+let calCursor = new Date();
+let selectedCalDate = null;
+
+function disableAll(formEl){
+  [...formEl.elements].forEach(el=>{ el.disabled = true; });
+}
+function populateForm(formEl, data){
+  [...formEl.elements].forEach(el=>{
+    if(!el.name) return;
+    if(el.type==='checkbox'){ el.checked = !!(data && data[el.name]); }
+    else { el.value = (data && data[el.name]!==undefined) ? data[el.name] : ''; }
+  });
+  formEl.classList.toggle('show-status', !!data);
+}
+disableAll(document.getElementById('tvForm'));
+disableAll(document.getElementById('radioForm'));
+
+/* ---- checkbox name lists, read from the forms actually in this page ---- */
+function tvCheckboxNames(){
+  return [...document.querySelectorAll('#tvForm input[type=checkbox]')].map(el=>el.name);
+}
+function radioCheckboxNames(excludePic){
+  return [...document.querySelectorAll('#radioForm input[type=checkbox]')]
+    .filter(el => !excludePic || !el.closest('#picCard'))
+    .map(el=>el.name);
+}
+const TV_CHECK_NAMES = tvCheckboxNames();
+const RADIO_CHECK_NAMES = radioCheckboxNames(true); // PIC card excluded — selection, not status
+
+function tvHasMemo(d){
+  const tv = backup.tv_logs && backup.tv_logs[d];
+  return !!(tv && tv.memo && tv.memo.trim());
+}
+function radioHasMemo(d){
+  const radio = backup.radio_logs && backup.radio_logs[d];
+  return !!(radio && radio.other && radio.other.trim());
+}
+function tvHasFault(d){
+  const tv = backup.tv_logs && backup.tv_logs[d];
+  return !!(tv && TV_CHECK_NAMES.some(n => !tv[n]));
+}
+function radioHasFault(d){
+  const radio = backup.radio_logs && backup.radio_logs[d];
+  return !!(radio && RADIO_CHECK_NAMES.some(n => !radio[n]));
+}
+function hasTvData(d){ return !!(backup.tv_logs && backup.tv_logs[d]); }
+function hasRadioData(d){ return !!(backup.radio_logs && backup.radio_logs[d]); }
+
+function fmtKey2(y,m,day){ return `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`; }
+function todayKey2(){ const t=new Date(); return fmtKey2(t.getFullYear(), t.getMonth(), t.getDate()); }
+
+function renderCal(){
+  if(!backup) return;
+  document.getElementById('calWrap').style.display = 'block';
+  const grid = document.getElementById('calGrid');
+  const y = calCursor.getFullYear(), m = calCursor.getMonth();
+  document.getElementById('calMonthLabel').textContent = `${y}년 ${m+1}월`;
+  const startDow = new Date(y,m,1).getDay();
+  const daysInMonth = new Date(y,m+1,0).getDate();
+  const tKey = todayKey2();
+
+  let cells = '';
+  for(let i=0;i<startDow;i++) cells += `<div class="day-cell2 blank2"></div>`;
+  for(let day=1; day<=daysInMonth; day++){
+    const key = fmtKey2(y,m,day);
+    const classes = ['day-cell2'];
+    if(key===tKey) classes.push('today2');
+    if(key===selectedCalDate) classes.push('selected2');
+    // 데이터가 있는 날짜만 점 표시 (필터 없음)
+    const showTv = hasTvData(key);
+    const showRadio = hasRadioData(key);
+    let dotsHtml = '';
+    if(showTv || showRadio){
+      dotsHtml = '<span class="dots">';
+      if(showTv) dotsHtml += '<span class="dot-tv"></span>';
+      if(showRadio) dotsHtml += '<span class="dot-radio"></span>';
+      dotsHtml += '</span>';
+    }
+    cells += `<div class="${classes.join(' ')}" data-date="${key}">
+        <span>${day}</span>${dotsHtml}
+      </div>`;
+  }
+  grid.innerHTML = cells;
+  grid.querySelectorAll('.day-cell2[data-date]').forEach(cell=>{
+    cell.addEventListener('click', ()=>{
+      selectedCalDate = cell.getAttribute('data-date');
+      renderCal();
+      showDate(selectedCalDate);
+    });
+  });
+}
+
+function showDate(d){
+  const tvData = backup.tv_logs ? backup.tv_logs[d] : null;
+  const radioData = backup.radio_logs ? backup.radio_logs[d] : null;
+  const tvSection = document.getElementById('tvSection');
+  const radioSection = document.getElementById('radioSection');
+  const note = document.getElementById('noDataNote');
+  const printWrap = document.getElementById('printBtnWrap');
+
+  document.getElementById('viewTitle').textContent = d + ' 기록';
+
+  if(tvData){ populateForm(document.getElementById('tvForm'), tvData); tvSection.classList.add('show'); }
+  else { tvSection.classList.remove('show'); }
+
+  if(radioData){ populateForm(document.getElementById('radioForm'), radioData); radioSection.classList.add('show'); }
+  else { radioSection.classList.remove('show'); }
+
+  note.style.display = (!tvData && !radioData) ? 'block' : 'none';
+  printWrap.innerHTML = (tvData || radioData)
+    ? `<button class="print-btn" id="printNowBtn">인쇄 / PDF</button>` : '';
+  const printBtn = document.getElementById('printNowBtn');
+  if(printBtn) printBtn.addEventListener('click', ()=> window.print());
+
+  window.scrollTo({ top: document.getElementById('viewTitle').offsetTop - 10, behavior:'smooth' });
+}
+
+document.getElementById('fileInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    try{
+      backup = JSON.parse(ev.target.result);
+      if(!backup.tv_logs) backup.tv_logs = {};
+      if(!backup.radio_logs) backup.radio_logs = {};
+      renderCal();
+    }catch(err){
+      alert('파일을 읽을 수 없습니다. 올바른 백업(JSON) 파일인지 확인해주세요.');
+    }
+  };
+  reader.readAsText(file);
+});
+document.getElementById('calPrev').addEventListener('click', ()=>{ calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth()-1, 1); renderCal(); });
+document.getElementById('calNext').addEventListener('click', ()=>{ calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth()+1, 1); renderCal(); });
+document.getElementById('todayBtn').addEventListener('click', ()=>{
+  if(!backup){ alert('먼저 JSON 백업 파일을 불러와 주세요.'); return; }
+  const t = new Date();
+  calCursor = new Date(t.getFullYear(), t.getMonth(), 1);
+  selectedCalDate = todayKey2();
+  renderCal();
+  showDate(selectedCalDate);
+});
+
+
+/* ========== View switch: Calendar <-> Dashboard ========== */
+function showDashboard(){
+  if(!backup){ alert('먼저 JSON 백업 파일을 불러와 주세요.'); return; }
+  document.getElementById('calWrap').style.display = 'none';
+  document.getElementById('viewTitle').style.display = 'none';
+  document.getElementById('printBtnWrap').style.display = 'none';
+  document.getElementById('tvSection').classList.remove('show');
+  document.getElementById('radioSection').classList.remove('show');
+  document.getElementById('noDataNote').style.display = 'none';
+  document.getElementById('dashSection').classList.add('show');
+  window.scrollTo({ top: 0 });
+  dashBuildChips();
+  dashRefresh();
+  dashRefreshFault();
+  modeBuildChips();
+  dashRefreshMode();
+  dashRefreshMemo();
+}
+function showHome(){
+  document.getElementById('dashSection').classList.remove('show');
+  document.getElementById('calWrap').style.display = 'block';
+  document.getElementById('viewTitle').style.display = '';
+  document.getElementById('printBtnWrap').style.display = '';
+  if(selectedCalDate) showDate(selectedCalDate);
+  window.scrollTo({ top: 0 });
+}
+document.getElementById('openDashBtn').addEventListener('click', showDashboard);
+document.getElementById('homeBtn').addEventListener('click', showHome);
+
+/* ========== Dashboard logic ========== */
+const DASH_METRICS = {
+  upsVr:{label:'TV UPS실 전압 R',group:'tv',unit:'V'},
+  upsVs:{label:'TV UPS실 전압 S',group:'tv',unit:'V'},
+  upsVt:{label:'TV UPS실 전압 T',group:'tv',unit:'V'},
+  upsAr:{label:'TV UPS실 전류 R',group:'tv',unit:'A'},
+  upsAs:{label:'TV UPS실 전류 S',group:'tv',unit:'A'},
+  upsAt:{label:'TV UPS실 전류 T',group:'tv',unit:'A'},
+  rups:{label:'TV R UPS',group:'tv',unit:'%'},
+  tvups:{label:'TV TV UPS',group:'tv',unit:'%'},
+  lightups:{label:'TV 조명 UPS',group:'tv',unit:'%'},
+  upstemp:{label:'TV UPS실 온도',group:'tv',unit:'℃'},
+  pdp1v:{label:'TV 기계실 PDP1 전압',group:'tv',unit:'V'},
+  pdp1a:{label:'TV 기계실 PDP1 전류',group:'tv',unit:'A'},
+  pdp2a:{label:'TV 기계실 PDP2 전류',group:'tv',unit:'A'},
+  machtemp:{label:'TV 기계실 온도',group:'tv',unit:'℃'},
+  dtvp:{label:'대룡산 DTV 출력',group:'tv',unit:''},
+  dtvr:{label:'대룡산 DTV REF',group:'tv',unit:''},
+  dmbp:{label:'대룡산 DMB 출력',group:'tv',unit:''},
+  dmbr:{label:'대룡산 DMB REF',group:'tv',unit:''},
+  dr:{label:'대룡산 한전전압 R',group:'tv',unit:'V'},
+  ds:{label:'대룡산 한전전압 S',group:'tv',unit:'V'},
+  dt:{label:'대룡산 한전전압 T',group:'tv',unit:'V'},
+  dtemp1:{label:'대룡산 기계실 온도',group:'tv',unit:'℃'},
+  dtemp2:{label:'대룡산 발전실 온도',group:'tv',unit:'℃'},
+  hp:{label:'화악산 DTV 출력',group:'tv',unit:''},
+  hr:{label:'화악산 DTV REF',group:'tv',unit:''},
+  hr1:{label:'화악산 한전전압 R',group:'tv',unit:'V'},
+  hs:{label:'화악산 한전전압 S',group:'tv',unit:'V'},
+  ht:{label:'화악산 한전전압 T',group:'tv',unit:'V'},
+  hups:{label:'화악산 UPS전압',group:'tv',unit:'V'},
+  het:{label:'화악산 전기실 온도',group:'tv',unit:'℃'},
+  htt:{label:'화악산 송신실 온도',group:'tv',unit:'℃'},
+  std_power:{label:'RADIO 표준FM 출력',group:'radio',unit:''},
+  std_ref:{label:'RADIO 표준FM REF',group:'radio',unit:''},
+  music_power:{label:'RADIO 음악FM 출력',group:'radio',unit:''},
+  music_ref:{label:'RADIO 음악FM REF',group:'radio',unit:''},
+  ups_r_in:{label:'RADIO UPS R 입력전압',group:'radio',unit:'V'},
+  ups_r_out:{label:'RADIO UPS R 출력전압',group:'radio',unit:'V'},
+  ups_r_load:{label:'RADIO UPS R 부하량',group:'radio',unit:'%'},
+  ups_s_in:{label:'RADIO UPS S 입력전압',group:'radio',unit:'V'},
+  ups_s_out:{label:'RADIO UPS S 출력전압',group:'radio',unit:'V'},
+  ups_s_load:{label:'RADIO UPS S 부하량',group:'radio',unit:'%'},
+  ups_t_in:{label:'RADIO UPS T 입력전압',group:'radio',unit:'V'},
+  ups_t_out:{label:'RADIO UPS T 출력전압',group:'radio',unit:'V'},
+  ups_t_load:{label:'RADIO UPS T 부하량',group:'radio',unit:'%'},
+  ups_temp:{label:'RADIO UPS 온도',group:'radio',unit:'℃'},
+  fwd_pwr:{label:'RADIO STL FWD PWR',group:'radio',unit:''},
+  rev_pwr:{label:'RADIO STL REV PWR',group:'radio',unit:''},
+  pdb_voltage:{label:'RADIO PDB 전압',group:'radio',unit:'V'},
+  pdb_current_r:{label:'RADIO PDB 전류 R',group:'radio',unit:'A'},
+  pdb_current_t:{label:'RADIO PDB 전류 T',group:'radio',unit:'A'},
+  pdb_temp:{label:'RADIO PDB 온도',group:'radio',unit:'℃'},
+};
+
+let dashMetric = 'upstemp';
+let dashChart = null;
+
+function dashParseNum(v){
+  if(v===undefined||v===null||v==='') return null;
+  const n = parseFloat(String(v).replace(/,/g,''));
+  return isNaN(n) ? null : n;
+}
+function dashToDate(str){
+  const [y,m,d] = str.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function dashMean(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null; }
+function dashStdev(arr){
+  if(arr.length<2) return null;
+  const m = dashMean(arr);
+  return Math.sqrt(arr.reduce((s,x)=>s+(x-m)**2,0)/(arr.length-1));
+}
+function dashFmt(n, digits=1){
+  if(n===null||n===undefined) return '-';
+  return Number(n).toFixed(digits);
+}
+
+function dashGetSeries(key, fromDate, endDate){
+  const meta = DASH_METRICS[key];
+  if(!meta||!backup) return [];
+  const logs = meta.group==='tv' ? (backup.tv_logs||{}) : (backup.radio_logs||{});
+  const points = [];
+  Object.keys(logs).sort().forEach(dateStr=>{
+    const d = dashToDate(dateStr);
+    if(fromDate && d < fromDate) return;
+    if(endDate && d > endDate) return;
+    const val = dashParseNum(logs[dateStr][key]);
+    if(val!==null) points.push({date:dateStr, value:val});
+  });
+  return points;
+}
+
+function dashPeriodRange(period){
+  const today = new Date(); today.setHours(0,0,0,0);
+  let from=null, to=today;
+  if(period==='all'){ from=null; to=null; }
+  else if(period==='7'){ from=new Date(today); from.setDate(from.getDate()-6); }
+  else if(period==='30'){ from=new Date(today); from.setDate(from.getDate()-29); }
+  else if(period==='thisMonth'){ from=new Date(today.getFullYear(), today.getMonth(), 1); }
+  else if(period==='lastMonth'){
+    from=new Date(today.getFullYear(), today.getMonth()-1, 1);
+    to=new Date(today.getFullYear(), today.getMonth(), 0);
+  } else if(period==='custom'){
+    const f=document.getElementById('dashFrom').value;
+    const t=document.getElementById('dashTo').value;
+    from=f?dashToDate(f):null;
+    to=t?dashToDate(t):null;
+  }
+  return {from, to};
+}
+
+function dashPrevRange(from, to){
+  if(!from||!to) return {from:null,to:null};
+  const days = Math.round((to-from)/86400000)+1;
+  const prevTo = new Date(from); prevTo.setDate(prevTo.getDate()-1);
+  const prevFrom = new Date(prevTo); prevFrom.setDate(prevFrom.getDate()-days+1);
+  return {from:prevFrom, to:prevTo};
+}
+
+/* ===== 분석 항목 트리: 구분 → 장소/장비 → 세부항목 [키, 짧은 라벨] ===== */
+const DASH_TREE = [
+  {group:'tv', cat:'UPS실', rows:[
+    {sub:'전압(V)', items:[['upsVr','R'],['upsVs','S'],['upsVt','T']]},
+    {sub:'전류(A)', items:[['upsAr','R'],['upsAs','S'],['upsAt','T']]},
+    {sub:'UPS(%)',  items:[['rups','R'],['tvups','TV'],['lightups','조명']]},
+    {sub:'온도(℃)', items:[['upstemp','UPS실 온도']]},
+  ]},
+  {group:'tv', cat:'기계실', rows:[
+    {sub:'PDP1', items:[['pdp1v','전압(V)'],['pdp1a','전류(A)']]},
+    {sub:'PDP2', items:[['pdp2a','전류(A)']]},
+    {sub:'온도(℃)', items:[['machtemp','기계실 온도']]},
+  ]},
+  {group:'tv', cat:'대룡산', rows:[
+    {sub:'DTV', items:[['dtvp','출력'],['dtvr','REF']]},
+    {sub:'DMB', items:[['dmbp','출력'],['dmbr','REF']]},
+    {sub:'한전전압(V)', items:[['dr','R'],['ds','S'],['dt','T']]},
+    {sub:'온도(℃)', items:[['dtemp1','기계실'],['dtemp2','발전실']]},
+  ]},
+  {group:'tv', cat:'화악산', rows:[
+    {sub:'DTV', items:[['hp','출력'],['hr','REF']]},
+    {sub:'전압(V)', items:[['hr1','한전 R'],['hs','한전 S'],['ht','한전 T'],['hups','UPS']]},
+    {sub:'온도(℃)', items:[['het','전기실'],['htt','송신실']]},
+  ]},
+  {group:'radio', cat:'FM·STL', rows:[
+    {sub:'표준FM', items:[['std_power','출력'],['std_ref','REF']]},
+    {sub:'음악FM', items:[['music_power','출력'],['music_ref','REF']]},
+    {sub:'STL',    items:[['fwd_pwr','FWD PWR'],['rev_pwr','REV PWR']]},
+  ]},
+  {group:'radio', cat:'UPS', rows:[
+    {sub:'R상', items:[['ups_r_in','입력전압'],['ups_r_out','출력전압'],['ups_r_load','부하량']]},
+    {sub:'S상', items:[['ups_s_in','입력전압'],['ups_s_out','출력전압'],['ups_s_load','부하량']]},
+    {sub:'T상', items:[['ups_t_in','입력전압'],['ups_t_out','출력전압'],['ups_t_load','부하량']]},
+    {sub:'온도(℃)', items:[['ups_temp','UPS 온도']]},
+  ]},
+  {group:'radio', cat:'PDB', rows:[
+    {sub:'전압(V)', items:[['pdb_voltage','전압']]},
+    {sub:'전류(A)', items:[['pdb_current_r','R'],['pdb_current_t','T']]},
+    {sub:'온도(℃)', items:[['pdb_temp','온도']]},
+  ]},
+];
+
+/* ===== 공용 선택기 렌더러 ===== */
+const pickerCatState = {};   // 화면별로 마지막에 열어 둔 분류 기억
+
+function pickerNormalize(tree, metaMap){
+  // 트리에 없는 항목이 생기면 '기타'로 자동 수집 (항목 추가 시 누락 방지)
+  const used = new Set();
+  const clean = tree.map(c=>({
+    group:c.group, cat:c.cat,
+    rows:c.rows.map(r=>({sub:r.sub, items:r.items.filter(([k])=>{ used.add(k); return metaMap[k]; })})).filter(r=>r.items.length)
+  })).filter(c=>c.rows.length);
+  ['tv','radio'].forEach(g=>{
+    const ks = Object.keys(metaMap).filter(k=>!used.has(k) && metaMap[k].group===g);
+    if(ks.length) clean.push({group:g, cat:'기타', rows:[{sub:'', items:ks.map(k=>[k, metaMap[k].label])}]});
+  });
+  return clean;
+}
+
+function buildPicker({listId, tree, metaMap, stateName, getKey, setKey, onPick}){
+  const list = document.getElementById(listId);
+  if(!list) return;
+  const source = document.getElementById('dashSource').value;
+  const cats = pickerNormalize(tree, metaMap).filter(c=> source==='both' || c.group===source);
+  const catId = c => c.group + '|' + c.cat;
+  const hasKey = (c,k) => c.rows.some(r=>r.items.some(i=>i[0]===k));
+
+  list.innerHTML = '';
+  if(!cats.length) return;
+
+  // 현재 선택 항목이 필터로 사라졌으면 첫 항목으로
+  if(!cats.some(c=>hasKey(c,getKey()))) setKey(cats[0].rows[0].items[0][0]);
+
+  const mk = (tag, cls, text) => {
+    const e = document.createElement(tag);
+    if(cls) e.className = cls;
+    if(text!==undefined) e.textContent = text;
+    return e;
+  };
+
+  function render(){
+    list.innerHTML = '';
+    const key = getKey();
+    const selCat = cats.find(c=>hasKey(c,key));
+    const active = cats.find(c=>catId(c)===pickerCatState[stateName]) || selCat || cats[0];
+    pickerCatState[stateName] = catId(active);
+
+    // 1) 현재 선택 표시
+    const cur = mk('div','picker-current');
+    cur.appendChild(mk('span','pc-label','선택됨'));
+    cur.appendChild(mk('span','pc-value', metaMap[key] ? metaMap[key].label : key));
+    list.appendChild(cur);
+
+    // 2) 분류 (TV / RADIO 줄 분리)
+    ['tv','radio'].forEach(g=>{
+      const gc = cats.filter(c=>c.group===g);
+      if(!gc.length) return;
+      const row = mk('div','picker-group-row');
+      row.appendChild(mk('div','picker-group '+g, g==='tv'?'TV':'RADIO'));
+      const wrap = mk('div','picker-cats');
+      gc.forEach(c=>{
+        const b = mk('button','picker-cat '+(g==='radio'?'radio-cat':'tv-cat'), c.cat);
+        b.type = 'button';
+        if(c===active) b.classList.add('active');
+        if(c!==active && hasKey(c,key)) b.classList.add('has-sel');
+        b.setAttribute('aria-pressed', c===active ? 'true':'false');
+        b.addEventListener('click', ()=>{ pickerCatState[stateName] = catId(c); render(); });
+        wrap.appendChild(b);
+      });
+      row.appendChild(wrap);
+      list.appendChild(row);
+    });
+
+    // 3) 선택한 분류의 세부항목
+    const body = mk('div','picker-body');
+    active.rows.forEach(r=>{
+      const row = mk('div','picker-row' + (r.sub ? '' : ' no-sub'));
+      if(r.sub) row.appendChild(mk('div','picker-sub', r.sub));
+      const chips = mk('div','picker-chips');
+      r.items.forEach(([k, short])=>{
+        const chip = mk('button','metric-chip '+(active.group==='tv'?'tv-chip':'radio-chip'), short);
+        chip.type = 'button';
+        chip.dataset.key = k;
+        chip.title = metaMap[k].label;
+        if(k===key) chip.classList.add('active');
+        chip.setAttribute('aria-pressed', k===key ? 'true':'false');
+        chip.addEventListener('click', ()=>{ setKey(k); render(); onPick(); });
+        chips.appendChild(chip);
+      });
+      row.appendChild(chips);
+      body.appendChild(row);
+    });
+    list.appendChild(body);
+  }
+  render();
+}
+
+function dashBuildChips(){
+  buildPicker({
+    listId:'dashMetricList', tree:DASH_TREE, metaMap:DASH_METRICS, stateName:'dash',
+    getKey:()=>dashMetric, setKey:k=>{ dashMetric=k; }, onPick:dashRefresh
+  });
+}
+
+function dashUpdateChart(series, meta){
+  const canvas = document.getElementById('dashChart');
+  if(!canvas) return;
+  if(typeof Chart==='undefined'){
+    canvas.parentElement.innerHTML = '<div style="text-align:center;color:#64717d;padding:40px 16px;font-size:13px;">차트 라이브러리를 불러오지 못했습니다. 인터넷 연결 후 새로고침 해 주세요.</div>';
+    return;
+  }
+  // restore canvas if previously replaced
+  if(!document.getElementById('dashChart')){
+    document.querySelector('.dash-chart-wrap').innerHTML = '<canvas id="dashChart"></canvas>';
+  }
+  const ctx = document.getElementById('dashChart').getContext('2d');
+  const color = meta.group==='tv' ? '#2b57a0' : '#c0392b';
+  if(dashChart) dashChart.destroy();
+  dashChart = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: series.map(p=>p.date.slice(5)),
+      datasets:[{
+        label: meta.label,
+        data: series.map(p=>p.value),
+        borderColor: color,
+        backgroundColor: color+'22',
+        borderWidth: 2,
+        pointRadius: series.length>40 ? 0 : 3,
+        pointHoverRadius: 5,
+        fill: true,
+        tension: 0.25
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:(c)=>`${c.parsed.y}${meta.unit?' '+meta.unit:''}`}}
+      },
+      scales:{
+        x:{ticks:{maxTicksLimit:12,font:{size:11}},grid:{display:false}},
+        y:{ticks:{font:{size:11}},grid:{color:'#e8eef3'}}
+      }
+    }
+  });
+}
+
+function dashRefresh(){
+  if(!backup) return;
+  const period = document.getElementById('dashPeriod').value;
+  const {from, to} = dashPeriodRange(period);
+  const series = dashGetSeries(dashMetric, from, to);
+  const meta = DASH_METRICS[dashMetric] || {label:dashMetric, unit:'', group:'tv'};
+  const values = series.map(p=>p.value);
+
+  document.getElementById('dashStatTitle').textContent = meta.label + (meta.unit?` (${meta.unit})`:'');
+  document.getElementById('dashStatCount').textContent = series.length ? `${series.length}개 데이터` : '데이터 없음';
+  document.getElementById('dashAvg').textContent = dashFmt(dashMean(values));
+  document.getElementById('dashMax').textContent = values.length ? dashFmt(Math.max(...values)) : '-';
+  document.getElementById('dashMin').textContent = values.length ? dashFmt(Math.min(...values)) : '-';
+  document.getElementById('dashStd').textContent = dashFmt(dashStdev(values));
+
+  dashUpdateChart(series, meta);
+
+  if(from && to){
+    const prev = dashPrevRange(from, to);
+    const prevSeries = dashGetSeries(dashMetric, prev.from, prev.to);
+    const curMean = dashMean(values);
+    const prevMean = dashMean(prevSeries.map(p=>p.value));
+    document.getElementById('dashCmpCur').textContent = dashFmt(curMean);
+    document.getElementById('dashCmpPrev').textContent = dashFmt(prevMean);
+    if(curMean!==null && prevMean!==null){
+      const delta = curMean - prevMean;
+      const pct = prevMean!==0 ? (delta/prevMean)*100 : null;
+      const dEl = document.getElementById('dashCmpDelta');
+      const pEl = document.getElementById('dashCmpPct');
+      dEl.textContent = (delta>=0?'+':'') + dashFmt(delta);
+      dEl.className = 'big ' + (delta>0?'delta-up':delta<0?'delta-down':'delta-same');
+      pEl.textContent = pct!==null ? ((pct>=0?'+':'')+dashFmt(pct)+'%') : '-';
+      pEl.className = 'big ' + (pct>0?'delta-up':pct<0?'delta-down':'delta-same');
+    } else {
+      document.getElementById('dashCmpDelta').textContent = '-';
+      document.getElementById('dashCmpPct').textContent = '-';
+    }
+  } else {
+    document.getElementById('dashCmpCur').textContent = dashFmt(dashMean(values));
+    document.getElementById('dashCmpPrev').textContent = '-';
+    document.getElementById('dashCmpDelta').textContent = '-';
+    document.getElementById('dashCmpPct').textContent = '-';
+  }
+
+  const tbody = document.getElementById('dashTableBody');
+  if(!series.length){
+    tbody.innerHTML = '<tr><td colspan="2">해당 기간에 데이터가 없습니다.</td></tr>';
+  } else {
+    tbody.innerHTML = series.slice().reverse().map(p=>
+      `<tr><td>${p.date}</td><td>${dashFmt(p.value)}</td></tr>`
+    ).join('');
+  }
+}
+
+document.getElementById('dashPeriod').addEventListener('change', ()=>{
+  const isCustom = document.getElementById('dashPeriod').value==='custom';
+  document.getElementById('dashFromWrap').classList.toggle('dash-hidden', !isCustom);
+  document.getElementById('dashToWrap').classList.toggle('dash-hidden', !isCustom);
+  dashRefresh();
+  dashRefreshFault();
+  dashRefreshMode();
+  dashRefreshMemo();
+});
+document.getElementById('dashFrom').addEventListener('change', ()=>{ dashRefresh(); dashRefreshFault(); dashRefreshMode(); dashRefreshMemo(); });
+document.getElementById('dashTo').addEventListener('change', ()=>{ dashRefresh(); dashRefreshFault(); dashRefreshMode(); dashRefreshMemo(); });
+document.getElementById('dashSource').addEventListener('change', ()=>{
+  dashBuildChips();
+  modeBuildChips();
+  dashRefresh();
+  dashRefreshFault();
+  dashRefreshMode();
+  dashRefreshMemo();
+});
+
+/* Tabs */
+document.querySelectorAll('.dash-tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.dash-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.dash-panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    const panel = document.getElementById('panel-' + tab.dataset.tab);
+    if(panel) panel.classList.add('active');
+  });
+});
+
+/* Human-readable labels for status checkboxes */
+const CHECK_LABELS = {
+  enc1:'엔코더1', enc2:'엔코더2', enc3:'엔코더3',
+  sync1:'Sync(주)', sync2:'Sync(예)', cap1:'자막코더(주)', cap2:'자막코더(예)', loud:'라우드니스',
+  ndd1:'NDD(주)', ndd2:'NDD(예)', imco1:'IMCO(주)', imco2:'IMCO(예)', psip1:'PSIP(주)', psip2:'PSIP(예)',
+  dmc1:'DMC(주)', dmc2:'DMC(예)', gps1:'GPS(주)', gps2:'GPS(예)', db:'DB서버',
+  mw6:'M/W 6G', mw11:'M/W 11G', mux1:'DMB MUX(주)', mux2:'DMB MUX(예)',
+  dtvremote:'대룡산 DTV 원격', dmbremote:'대룡산 DMB 원격', dg1:'대룡산 발전기',
+  dcomm1:'대룡산 통신(주)', dcomm2:'대룡산 통신(예)',
+  hremote:'화악산 원격', hg1:'화악산 발전기(주)', hg2:'화악산 발전기(예)',
+  hc1:'화악산 통신(주)', hc2:'화악산 통신(예)',
+  std_remote:'표준FM 원격', music_remote:'음악FM 원격',
+  net_std:'NET 표준FM', net_music:'NET 음악FM',
+  codec_std:'IP CODEC 표준', codec_music:'IP CODEC 음악',
+  gang_upper:'도권망 강릉(상)', gang_lower:'도권망 강릉(하)',
+  wonju_upper:'도권망 원주(상)', wonju_lower:'도권망 원주(하)',
+  auto_main:'AUTO PLAYER 주', auto_backup:'AUTO PLAYER 예비',
+  mcm_std_run:'MCM 표준 동작', mcm_std_cache:'MCM 표준 캐쉬',
+  mcm_music_run:'MCM 음악 동작', mcm_music_cache:'MCM 음악 캐쉬',
+  pic_std_pgm:'PIC 표준 PGM', pic_std_rs:'PIC 표준 R/S', pic_std_net:'PIC 표준 NET', pic_std_bypass:'PIC 표준 Bypass',
+  pic_music_pgm:'PIC 음악 PGM', pic_music_rs:'PIC 음악 R/S', pic_music_net:'PIC 음악 NET', pic_music_bypass:'PIC 음악 Bypass'
+};
+function checkLabel(name){ return CHECK_LABELS[name] || name; }
+
+function dashInRange(dateStr, from, to){
+  const d = dashToDate(dateStr);
+  if(from && d < from) return false;
+  if(to && d > to) return false;
+  return true;
+}
+
+function dashRefreshFault(){
+  if(!backup) return;
+  const period = document.getElementById('dashPeriod').value;
+  const source = document.getElementById('dashSource').value;
+  const {from, to} = dashPeriodRange(period);
+
+  const faultCount = {}; // name -> count
+  const dayFaults = [];  // {date, items:[{group,name}]}
+  let faultDays = 0;
+  let totalFaults = 0;
+
+  const allDates = new Set([
+    ...Object.keys(backup.tv_logs||{}),
+    ...Object.keys(backup.radio_logs||{})
+  ]);
+
+  [...allDates].sort().reverse().forEach(dateStr=>{
+    if(!dashInRange(dateStr, from, to)) return;
+    const items = [];
+
+    if(source!=='radio' && backup.tv_logs && backup.tv_logs[dateStr]){
+      const tv = backup.tv_logs[dateStr];
+      TV_CHECK_NAMES.forEach(n=>{
+        if(!tv[n]){
+          items.push({group:'TV', name:n});
+          faultCount['TV:'+n] = (faultCount['TV:'+n]||0)+1;
+          totalFaults++;
+        }
+      });
+    }
+    if(source!=='tv' && backup.radio_logs && backup.radio_logs[dateStr]){
+      const radio = backup.radio_logs[dateStr];
+      RADIO_CHECK_NAMES.forEach(n=>{
+        if(!radio[n]){
+          items.push({group:'RADIO', name:n});
+          faultCount['RADIO:'+n] = (faultCount['RADIO:'+n]||0)+1;
+          totalFaults++;
+        }
+      });
+    }
+
+    if(items.length){
+      faultDays++;
+      dayFaults.push({date:dateStr, items});
+    }
+  });
+
+  document.getElementById('faultDayCount').textContent = faultDays;
+  document.getElementById('faultTotalCount').textContent = totalFaults;
+
+  const top = Object.entries(faultCount).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  document.getElementById('faultTopItem').textContent = top.length
+    ? checkLabel(top[0][0].split(':')[1]) + ' ('+top[0][1]+')'
+    : '-';
+
+  document.getElementById('faultTopBody').innerHTML = top.length
+    ? top.map((e,i)=>{
+        const [grp, name] = e[0].split(':');
+        return `<tr><td>${i+1}</td><td>${grp}</td><td>${checkLabel(name)}</td><td>${e[1]}</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="4">이상 항목 없음</td></tr>';
+
+  document.getElementById('faultDayBody').innerHTML = dayFaults.length
+    ? dayFaults.map(row=>`<tr><td>${row.date}</td><td style="text-align:left;">${
+        row.items.map(it=>`<span class="fault-tag">[${it.group}] ${checkLabel(it.name)}</span>`).join(' ')
+      }</td></tr>`).join('')
+    : '<tr><td colspan="2">해당 기간에 이상 없음</td></tr>';
+}
+
+function dashRefreshMemo(){
+  if(!backup) return;
+  const period = document.getElementById('dashPeriod').value;
+  const source = document.getElementById('dashSource').value;
+  const {from, to} = dashPeriodRange(period);
+  const q = (document.getElementById('memoSearch').value || '').trim().toLowerCase();
+
+  const rows = [];
+  const allDates = new Set([
+    ...Object.keys(backup.tv_logs||{}),
+    ...Object.keys(backup.radio_logs||{})
+  ]);
+
+  [...allDates].sort().reverse().forEach(dateStr=>{
+    if(!dashInRange(dateStr, from, to)) return;
+    const tvMemo = (source!=='radio' && backup.tv_logs && backup.tv_logs[dateStr] && backup.tv_logs[dateStr].memo)
+      ? String(backup.tv_logs[dateStr].memo).trim() : '';
+    const radioMemo = (source!=='tv' && backup.radio_logs && backup.radio_logs[dateStr] && backup.radio_logs[dateStr].other)
+      ? String(backup.radio_logs[dateStr].other).trim() : '';
+    if(!tvMemo && !radioMemo) return;
+    if(q){
+      const hit = (tvMemo && tvMemo.toLowerCase().includes(q)) || (radioMemo && radioMemo.toLowerCase().includes(q));
+      if(!hit) return;
+    }
+    rows.push({date:dateStr, tvMemo, radioMemo});
+  });
+
+  document.getElementById('memoCount').textContent = rows.length ? `${rows.length}건` : '없음';
+  const list = document.getElementById('memoList');
+  if(!rows.length){
+    list.innerHTML = '<div style="text-align:center;color:#64717d;padding:20px;font-size:13px;">해당 조건의 전달사항이 없습니다.</div>';
+    return;
+  }
+  list.innerHTML = rows.map(r=>`
+    <div class="memo-item">
+      <div class="memo-date">${r.date}</div>
+      ${r.tvMemo ? `<div style="margin-top:6px;"><span class="sel-tag">TV</span><div class="memo-box">${escapeHtml(r.tvMemo)}</div></div>` : ''}
+      ${r.radioMemo ? `<div style="margin-top:6px;"><span class="fault-tag">RADIO</span><div class="memo-box">${escapeHtml(r.radioMemo)}</div></div>` : ''}
+    </div>
+  `).join('');
+}
+
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('memoSearch').addEventListener('input', dashRefreshMemo);
+
+/* ========== 설정·모드 (카테고리 값) ========== */
+const MODE_FIELDS = {
+  ymode:   { label:'무순단 모드', group:'tv' },
+  ysw:     { label:'무순단 S/W', group:'tv' },
+  esw:     { label:'엔코더 S/W', group:'tv' },
+  gpssw:   { label:'GPS S/W', group:'tv' },
+  ats:     { label:'ATS S/W', group:'tv' },
+  dtvtx:   { label:'대룡산 DTV 송신기', group:'tv' },
+  dtvpic:  { label:'대룡산 DTV PIC', group:'tv' },
+  dmbtx:   { label:'대룡산 DMB 송신기', group:'tv' },
+  dmbpic:  { label:'대룡산 DMB PIC', group:'tv' },
+  htx:     { label:'화악산 DTV 송신기', group:'tv' },
+  hpic:    { label:'화악산 DTV PIC', group:'tv' },
+  std_tx:  { label:'RADIO 표준FM 송신기', group:'radio' },
+  std_pic: { label:'RADIO 표준FM PIC', group:'radio' },
+  music_tx:{ label:'RADIO 음악FM 송신기', group:'radio' },
+  music_pic:{ label:'RADIO 음악FM PIC', group:'radio' },
+  pdb_position: { label:'RADIO PDB 위치', group:'radio' },
+};
+
+let modeMetric = 'ymode';
+
+function modeNorm(v){
+  if(v===undefined||v===null) return '';
+  return String(v).trim();
+}
+
+const MODE_TREE = [
+  {group:'tv', cat:'시스템', rows:[
+    {sub:'무순단', items:[['ymode','모드'],['ysw','S/W']]},
+    {sub:'S/W',    items:[['esw','엔코더'],['gpssw','GPS'],['ats','ATS']]},
+  ]},
+  {group:'tv', cat:'대룡산', rows:[
+    {sub:'DTV', items:[['dtvtx','송신기'],['dtvpic','PIC']]},
+    {sub:'DMB', items:[['dmbtx','송신기'],['dmbpic','PIC']]},
+  ]},
+  {group:'tv', cat:'화악산', rows:[
+    {sub:'DTV', items:[['htx','송신기'],['hpic','PIC']]},
+  ]},
+  {group:'radio', cat:'FM·PDB', rows:[
+    {sub:'표준FM', items:[['std_tx','송신기'],['std_pic','PIC']]},
+    {sub:'음악FM', items:[['music_tx','송신기'],['music_pic','PIC']]},
+    {sub:'PDB',    items:[['pdb_position','위치']]},
+  ]},
+];
+
+function modeBuildChips(){
+  buildPicker({
+    listId:'modeMetricList', tree:MODE_TREE, metaMap:MODE_FIELDS, stateName:'mode',
+    getKey:()=>modeMetric, setKey:k=>{ modeMetric=k; }, onPick:dashRefreshMode
+  });
+}
+
+function dashRefreshMode(){
+  if(!backup) return;
+  const meta = MODE_FIELDS[modeMetric];
+  if(!meta) return;
+  const period = document.getElementById('dashPeriod').value;
+  const {from, to} = dashPeriodRange(period);
+  const logs = meta.group==='tv' ? (backup.tv_logs||{}) : (backup.radio_logs||{});
+
+  const series = []; // chronological {date, value}
+  Object.keys(logs).sort().forEach(dateStr=>{
+    if(!dashInRange(dateStr, from, to)) return;
+    const raw = logs[dateStr][modeMetric];
+    const val = modeNorm(raw);
+    // include empty as "(미입력)"
+    series.push({ date: dateStr, value: val==='' ? '(미입력)' : val });
+  });
+
+  // distribution
+  const dist = {};
+  series.forEach(p=>{ dist[p.value] = (dist[p.value]||0)+1; });
+  const total = series.length || 1;
+  const distRows = Object.entries(dist).sort((a,b)=>b[1]-a[1]);
+
+  document.getElementById('modeStatTitle').textContent = meta.label + ' · 값 분포';
+  document.getElementById('modeStatCount').textContent = series.length ? `${series.length}개 기록` : '데이터 없음';
+  document.getElementById('modeDistBody').innerHTML = distRows.length
+    ? distRows.map(([v,c])=>`<tr><td>${escapeHtml(v)}</td><td>${c}</td><td>${((c/total)*100).toFixed(1)}%</td></tr>`).join('')
+    : '<tr><td colspan="3">데이터 없음</td></tr>';
+
+  // change history (chronological)
+  const changes = [];
+  for(let i=1;i<series.length;i++){
+    if(series[i].value !== series[i-1].value){
+      changes.push({
+        date: series[i].date,
+        prev: series[i-1].value,
+        next: series[i].value
+      });
+    }
+  }
+  document.getElementById('modeChangeBody').innerHTML = changes.length
+    ? changes.slice().reverse().map(c=>
+        `<tr><td>${c.date}</td><td>${escapeHtml(c.prev)}</td><td><strong>${escapeHtml(c.next)}</strong></td></tr>`
+      ).join('')
+    : '<tr><td colspan="3">기간 내 값 변경 없음</td></tr>';
+
+  // day list (newest first)
+  document.getElementById('modeDayBody').innerHTML = series.length
+    ? series.slice().reverse().map(p=>
+        `<tr><td>${p.date}</td><td>${escapeHtml(p.value)}</td></tr>`
+      ).join('')
+    : '<tr><td colspan="2">데이터 없음</td></tr>';
+}
+</script>
+</body>
+</html>
