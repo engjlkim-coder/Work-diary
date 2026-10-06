@@ -1188,7 +1188,9 @@ async function openNoticeEditor(kind, dateKey){
     ncEl.disable.style.display = data.enabled ? '' : 'none';
   }else{
     ncEl.from.value = dateKey;
-    ncEl.to.value = dateKey;
+    const endD = new Date(dateKey);
+    endD.setDate(endD.getDate() + 7);
+    ncEl.to.value = `${endD.getFullYear()}-${pad(endD.getMonth()+1)}-${pad(endD.getDate())}`;
     const formSel = kind==='tv' ? '#tvForm [name="memo"]' : '#radioForm [name="other"]';
     const memoField = document.querySelector(formSel);
     ncEl.msg.value = (memoField && memoField.value) || '';
