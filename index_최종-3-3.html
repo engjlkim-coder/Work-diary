@@ -1,0 +1,2859 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>기술국 현업일지</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#1f7a5c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="현업일지">
+<style>
+  :root{
+    --bg: #f2f0e8;
+    --panel: #ffffff;
+    --panel-2: #eeebe0;
+    --line: #e2ddcf;
+    --text: #23262b;
+    --text-dim: #8b8a82;
+    --amber: #1f7a5c;
+    --cyan: #2b57a0;
+    --sun-red: #b3382c;
+    --sat-blue: #2b57a0;
+    --navbar-bg: #17212c;
+    --navbar-active: #2a3a4b;
+    --navbar-text: #7c8896;
+    --navbar-text-active: #ffffff;
+    --radius: 12px;
+    --pad: clamp(14px, 4.2vw, 22px);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin:0; padding:0; background:var(--bg); color:var(--text); height:100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app { max-width: 560px; width:100%; margin: 0 auto; min-height: 100vh; min-height: 100dvh; position:relative; overflow-x:hidden; }
+  .page { display:block; padding-bottom: calc(96px + env(safe-area-inset-bottom)); min-height: 100dvh; }
+  .page.hidden { display:none !important; }
+
+  /* shared header (calendar tab only) */
+  .app-header { padding: clamp(16px,4vh,22px) var(--pad) 4px; }
+  .app-header h1 { font-size: clamp(20px, 6vw, 25px); font-weight: 800; margin: 0 0 10px; letter-spacing:-0.01em; }
+  .underline { width: 44px; height: 4px; background: var(--amber); border-radius: 3px; margin-bottom: 12px; }
+
+  /* calendar nav */
+  .cal-nav { display:flex; align-items:center; justify-content:center; gap:10px; padding: 0 var(--pad) 12px; }
+  .cal-nav .navbtn {
+    background: #fff; border: 1px solid #b8c3cc; color: #314d68;
+    width: 34px; height: 34px; border-radius: 8px; font-size: 16px; font-weight:700; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; flex:0 0 auto; line-height:1; padding:0;
+  }
+  .cal-nav .navbtn:active { background: var(--panel-2); }
+  .cal-nav .cal-month { flex:0 0 auto; text-align:center; font-size: 17px; font-weight: bold; color:#314d68; min-width:96px; }
+  .cal-nav .todaybtn {
+    background: #fff; border: 1px solid #b8c3cc; color: #1f7a5c;
+    border-radius: 8px; padding: 0 12px; height:34px; font-size: 13px; font-weight:700; cursor:pointer;
+    white-space:nowrap;
+  }
+  .cal-nav .backupbtn {
+    background: #314d68; border: 1px solid #314d68; color: #fff;
+    border-radius: 8px; padding: 0 12px; height:34px; font-size: 13px; font-weight:700; cursor:pointer;
+    white-space:nowrap;
+  }
+
+  #page-calendar { display:flex; flex-direction:column; }
+  .cal-card {
+    margin: 0 var(--pad) 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: clamp(10px,3vw,16px) clamp(8px,2.4vw,14px) clamp(12px,3vw,16px);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    flex: 1 1 auto; display:flex; flex-direction:column; min-height:0;
+  }
+  .dow-row { display:grid; grid-template-columns: repeat(7, 1fr); margin-bottom:8px; flex:0 0 auto; }
+  .dow-row div { text-align:center; font-size: clamp(11px,3vw,12px); font-weight:700; color: var(--text); padding: 4px 0; }
+  .dow-row div.sun { color: var(--sun-red); }
+  .dow-row div.sat { color: var(--sat-blue); }
+  .day-row { display:grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 1fr; gap: clamp(3px,1.2vw,5px); flex:1 1 auto; min-height:0; }
+
+  .day-cell {
+    position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    border-radius: 10px; font-size: clamp(13px,3.6vw,16px); cursor:pointer;
+    background: var(--panel); border: 1px solid var(--line); color: var(--text);
+  }
+  .day-cell.blank { visibility:hidden; cursor:default; }
+  .day-cell.weekend-tint { background: var(--panel-2); }
+  .day-cell.today { border-color: var(--amber); border-width:2px; }
+  .day-cell.selected { background: var(--amber); border-color: var(--amber); }
+  .day-cell.selected .num, .day-cell.selected .num.sun, .day-cell.selected .num.sat { color:#fff; }
+  .day-cell:active { filter: brightness(0.96); }
+  .day-cell .num.sun { color: var(--sun-red); font-weight:700; }
+  .day-cell .num.sat { color: var(--sat-blue); font-weight:700; }
+  .day-cell .tag { margin-top:5px; font-size: clamp(9px,2.6vw,11px); color: var(--text-dim); font-weight:600; }
+  .day-cell .dotrow { display:flex; gap:3px; margin-top:6px; }
+  .day-cell .dotrow i { width:5px; height:5px; border-radius:50%; display:inline-block; }
+
+  .legend-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px var(--pad) 4px; }
+  .legend { display:flex; align-items:center; gap:12px; font-size:12px; color:var(--text-dim); flex-wrap:wrap; min-width:0; }
+  .legend span { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
+  .legend i { width:6px; height:6px; border-radius:50%; display:inline-block; }
+  .viewer-link { flex:0 0 auto; display:inline-flex; align-items:center; gap:7px; text-decoration:none; color:#314d68; background:var(--panel); border:1px solid #b8c3cc; border-radius:9px; padding:7px 9px; box-shadow:0 1px 2px rgba(0,0,0,0.03); white-space:nowrap; }
+  .viewer-link:active { background:var(--panel-2); }
+  .viewer-link-icon { flex:0 0 auto; width:24px; height:24px; border-radius:6px; background:#eef2f5; color:#314d68; display:flex; align-items:center; justify-content:center; }
+  .viewer-link-icon svg { width:15px; height:15px; }
+  .viewer-link-text { display:block; min-width:0; }
+  .viewer-link-text strong { font-size:12px; color:#314d68; font-weight:700; }
+  .viewer-link-text small { display:none; }
+  .viewer-link-arrow { flex:0 0 auto; font-size:16px; color:#8b8a82; line-height:1; }
+  @media(max-width:380px){ .legend-row{gap:6px;} .legend{gap:8px;font-size:11px;} .viewer-link{padding:6px 7px;gap:5px;} .viewer-link-text strong{font-size:11px;} }
+
+  /* bottom nav (shared shell) */
+  .bottom-nav {
+    position: fixed; left:0; right:0; bottom:0; z-index:50;
+    max-width: 560px; margin: 0 auto;
+    background: var(--navbar-bg); display:flex; padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+  }
+  .nav-btn {
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;
+    padding: 8px 4px; border-radius: 12px; cursor:pointer; color: var(--navbar-text);
+    background: transparent; border:none; font-family:inherit;
+  }
+  .nav-btn svg { width:22px; height:22px; }
+  .nav-btn span { font-size: clamp(10px,2.8vw,11px); font-weight:600; }
+  .nav-btn.active { background: var(--navbar-active); color: var(--navbar-text-active); }
+
+  /* backup sheet */
+  .bk-overlay { position:fixed; inset:0; z-index:100; background:rgba(23,33,44,0.5); display:none; align-items:flex-end; justify-content:center; }
+  .bk-overlay.open { display:flex; }
+  .bk-sheet { width:100%; max-width:560px; background:var(--panel); border-radius:18px 18px 0 0; padding:20px var(--pad) calc(18px + env(safe-area-inset-bottom)); }
+  .bk-sheet h2 { margin:0 0 4px; font-size:18px; font-weight:800; color:#314d68; }
+  .bk-sheet .bk-sub { margin:0 0 14px; font-size:12px; color:var(--text-dim); }
+  .bk-opt { display:flex; align-items:flex-start; gap:10px; padding:12px; margin-bottom:8px; border:1px solid var(--line); border-radius:10px; cursor:pointer; background:var(--panel); }
+  .bk-opt:has(input:checked) { border-color:#314d68; background:#eef2f5; }
+  .bk-opt input { margin:3px 0 0; accent-color:#314d68; width:16px; height:16px; flex:0 0 auto; }
+  .bk-opt strong { display:block; font-size:14px; color:var(--text); }
+  .bk-opt small { display:block; margin-top:2px; font-size:12px; color:var(--text-dim); line-height:1.4; }
+  .bk-month { display:flex; align-items:center; justify-content:center; gap:10px; margin:2px 0 8px; }
+  .bk-month.hidden { display:none; }
+  .bk-month .navbtn { background:#fff; border:1px solid #b8c3cc; color:#314d68; width:34px; height:34px; border-radius:8px; font-size:16px; font-weight:700; cursor:pointer; line-height:1; padding:0; }
+  .bk-month .navbtn:active { background:var(--panel-2); }
+  .bk-month-label { min-width:110px; text-align:center; font-size:16px; font-weight:bold; color:#314d68; }
+  .bk-range { display:none; gap:10px; margin:2px 0 8px; }
+  .bk-range.show { display:flex; }
+  .bk-range-field { flex:1; display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--text-dim); }
+  .bk-range-field input[type="date"] { height:38px; border:1px solid #b8c3cc; border-radius:8px; padding:0 8px; font-size:13px; font-family:inherit; background:#fff; color:var(--text); }
+
+  /* notice popup */
+  .nt-overlay { position:fixed; inset:0; z-index:110; background:rgba(23,33,44,0.55); display:none; align-items:center; justify-content:center; padding:20px; }
+  .nt-overlay.open { display:flex; }
+  .nt-card { width:100%; max-width:420px; background:var(--panel); border-radius:14px; padding:22px 20px; box-shadow:0 10px 30px rgba(0,0,0,0.3); }
+  .nt-count { font-size:11px; color:var(--text-dim); margin-bottom:6px; }
+  .nt-card h3 { margin:0 0 4px; font-size:16px; font-weight:800; color:#314d68; }
+  .nt-logdate { margin:0 0 4px; font-size:13px; font-weight:700; color:var(--amber); }
+  .nt-logdate:empty { display:none; }
+  .nt-logdate.today { display:inline-block; background:#fff4cc; border:1px solid #e0a100; border-radius:6px; padding:3px 8px; }
+  .nt-period { margin:0 0 12px; font-size:12px; color:var(--text-dim); }
+  .nt-msg { margin:0 0 18px; font-size:14px; color:var(--text); line-height:1.6; white-space:pre-wrap; }
+  .nt-ok { width:100%; height:44px; border-radius:10px; border:1px solid #314d68; background:#314d68; color:#fff; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+
+  /* 달력 상단 "공지" 버튼 — 백업 버튼(.backupbtn)과 같은 스타일 + 안 읽은 공지 배지 */
+  .cal-nav .noticebtn { position:relative; }
+  /* 공지 버튼 색: 오늘 날짜 공지 있음 = 빨강 / 다른 날짜 공지만 있음 = 노랑 / 공지 없음 = 기본(남색) */
+  .cal-nav .noticebtn.notice-today { background:var(--sun-red); border-color:var(--sun-red); color:#fff; }
+  .cal-nav .noticebtn.notice-any { background:#1f7a5c; border-color:#1f7a5c; color:#fff; }
+  /* 공지 개수 배지 — 버튼 글씨(공지)를 가리지 않도록 오른쪽 위 모서리 밖으로 뺌. 초록 배경 + 흰 테두리(어떤 버튼 색에서도 구분됨) */
+  .notice-badge { position:absolute; top:-11px; right:-11px; min-width:16px; height:16px; padding:0 4px; border-radius:10px; background:#1f7a5c; color:#fff; font-size:10px; font-weight:800; line-height:16px; text-align:center; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.35); box-sizing:content-box; pointer-events:none; }
+  @media(max-width:420px){
+    .cal-nav { gap:6px; flex-wrap:wrap; }
+    .cal-nav .cal-month { min-width:0; font-size:16px; }
+    .cal-nav .todaybtn, .cal-nav .backupbtn { padding:0 9px; }
+  }
+
+  /* 공지 목록 시트 */
+  .nl-list { max-height:58vh; overflow-y:auto; margin:0 -4px 12px; padding:0 4px; }
+  .nl-empty { margin:18px 0; text-align:center; font-size:13px; color:var(--text-dim); }
+  .nl-card { border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:8px; background:var(--panel); }
+  .nl-card.unread { border-color:#314d68; background:#eef2f5; }
+  .nl-card.read { opacity:0.72; }
+  /* 오늘 날짜(공지 날짜 / 일지 날짜)의 공지 — 다른 공지와 구분되는 노란 강조 */
+  .nl-card.today { opacity:1; background:#fff4cc; border:2px solid #e0a100; box-shadow:0 2px 8px rgba(224,161,0,0.25); }
+  .nl-today { font-size:10px; font-weight:800; color:#fff; background:#e0a100; border-radius:999px; padding:2px 7px; }
+  .nl-head { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:2px; }
+  .nl-date { font-size:12px; font-weight:600; color:var(--text-dim); }
+  .nl-log { font-size:13px; font-weight:800; color:#314d68; }
+  .nl-new { font-size:10px; font-weight:800; color:#fff; background:var(--sun-red); border-radius:999px; padding:2px 6px; }
+  .nl-period { margin:0 0 8px; font-size:12px; color:var(--text-dim); }
+  .nl-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:10px; }
+  .nl-share { border:1px solid #e6cf00; background:#fee500; color:#191919; font-size:12px; font-weight:700; padding:5px 14px; border-radius:999px; cursor:pointer; font-family:inherit; }
+  .nl-share:active { background:#f2d800; }
+  .nl-edit { border:1px solid #314d68; background:#fff; color:#314d68; font-size:12px; font-weight:700; padding:5px 14px; border-radius:999px; cursor:pointer; font-family:inherit; }
+  .nl-edit:active { background:var(--panel-2); }
+  .nl-msg { margin:0; font-size:14px; line-height:1.55; color:var(--text); white-space:pre-wrap; word-break:break-word; }
+
+  /* 일지 카드 안의 "공지" 버튼 + 공지 작성 창 */
+  .card-title-row { display:flex; align-items:center; justify-content:space-between; }
+  .notice-trigger { flex:0 0 auto; border:1px solid #314d68; background:#314d68; color:#fff; font-size:12px; font-weight:700; padding:5px 12px; border-radius:999px; cursor:pointer; font-family:inherit; }
+  .notice-trigger:active { background:#263c50; }
+  .notice-dates { display:flex; gap:10px; margin-bottom:10px; }
+  .notice-dates label { flex:1; display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--text-dim); }
+  .notice-dates input[type="date"] { height:38px; width:100%; border:1px solid #b8c3cc; border-radius:7px; padding:0 8px; font-size:13px; font-family:inherit; background:#fff; color:var(--text); }
+  .notice-dates input[type="text"] { height:38px; width:100%; border:1px solid #b8c3cc; border-radius:7px; padding:0 8px; font-size:13px; font-family:inherit; background:#fff; color:var(--text); }
+  .notice-dates select { height:38px; width:100%; border:1px solid #b8c3cc; border-radius:7px; padding:0 8px; font-size:13px; font-family:inherit; background:#fff; color:var(--text); }
+  .notice-msg { width:100%; min-height:90px; border:1px solid #b8c3cc; border-radius:7px; padding:8px; font-size:14px; font-family:inherit; resize:vertical; margin-bottom:10px; background:#fff; color:var(--text); }
+  .bk-disable { background:#fff; border:1px solid #e0b4b4; color:#b23b3b; }
+  .bk-status { min-height:18px; margin:6px 0 10px; font-size:12px; color:var(--text-dim); text-align:center; }
+  .bk-status.err { color:var(--sun-red); }
+  .bk-actions { display:flex; gap:8px; }
+  .bk-actions button { flex:1; height:44px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .bk-cancel { background:#fff; border:1px solid #b8c3cc; color:#314d68; }
+  .bk-run { background:#314d68; border:1px solid #314d68; color:#fff; }
+  .bk-run:disabled { opacity:0.5; cursor:not-allowed; }
+
+  /* print: only the log form itself should print, no app chrome */
+  @media print {
+    .bottom-nav { display:none !important; }
+    .page { padding-bottom:0 !important; }
+    .dnbtn, .todaybtn2, .tv-import .bottom, .radio-import .btnbar { display:none !important; }
+    .dow-inline { display:inline !important; }
+    .tv-import header, .radio-import header { position:static !important; box-shadow:none !important; }
+    body { background:#fff !important; }
+    .break-page { break-before: page; page-break-before: always; }
+    .break-page-row { break-before: page; page-break-before: always; }
+    .tv-import textarea::placeholder, .tv-import input::placeholder,
+    .radio-import textarea::placeholder, .radio-import input::placeholder { color: transparent !important; }
+  }
+
+  /* =======================================================
+     TV현업일지 — scoped styles copied from uploaded file
+     ======================================================= */
+  .tv-import *{box-sizing:border-box}
+  .tv-import{background:#eef2f5;color:#202a33;font-family:"Malgun Gothic","Noto Sans KR",Arial,sans-serif;font-size:14px;}
+  .tv-import header{position:sticky;top:0;z-index:5;background:#314d68;color:#fff;padding:14px;box-shadow:0 2px 7px #0003}
+  .tv-import h1{margin:0;font-size:21px;font-weight:bold;}
+  .tv-import .wrap{max-width:900px;margin:auto;padding:8px}
+  .tv-import .card{background:#fff;margin:8px 0;border:1px solid #cbd4dc;border-radius:9px;overflow:hidden}
+  .tv-import .title{background:#e7edf2;padding:9px 11px;font-weight:bold;color:#29445b;border-bottom:1px solid #adb9c3}
+  .tv-import .sec{padding:9px}
+  .tv-import table{width:100%;border-collapse:collapse;table-layout:fixed}
+  .tv-import th,.tv-import td{border:1px solid #aeb8c1;padding:4px;text-align:center;vertical-align:middle;font-weight:400}
+  .tv-import th{background:#f3f6f8;font-size:14px;font-weight:600}
+  .tv-import td:first-child{background:#fafbfc;font-weight:600}
+  .tv-import td:not(:first-child){font-size:13px}
+  .tv-import input,.tv-import select,.tv-import textarea{width:100%;min-height:38px;border:1px solid #b8c3cc;border-radius:6px;padding:7px;font-size:14px;background:#fff}
+  .tv-import textarea{min-height:160px}
+  .tv-import .check{display:flex;justify-content:center;align-items:center;min-height:34px}
+  .tv-import .check input[type="checkbox"]{
+    appearance:none;-webkit-appearance:none;-moz-appearance:none;
+    width:24px;height:24px;min-width:24px;min-height:24px;padding:0;margin:0;
+    border:2px solid #b8c3cc;border-radius:5px;background-color:#fff;cursor:pointer;
+    background-repeat:no-repeat;background-position:center;background-size:15px 15px;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  .tv-import .check input[type="checkbox"]:checked{
+    background-color:#314d68;border-color:#314d68;
+    background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke="white" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+  }
+  .tv-import #tvForm.show-status .check input[type="checkbox"]:not(:checked){
+    background-color:#c0392b;border-color:#c0392b;
+    background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="white" stroke-width="3.4" fill="none" stroke-linecap="round"/></svg>');
+  }
+  .tv-import .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .tv-import .label{font-size:12px;font-weight:bold;color:#66737e;margin-bottom:3px}
+  .tv-import .bottom{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;padding:10px 0 4px}
+  .tv-import button{border:0;border-radius:7px;padding:12px;font-weight:bold;font-size:14px}
+  .tv-import .save{background:#314d68;color:white}
+  .tv-import .print{background:#314d68;color:#fff}
+  .tv-import .clear{background:#314d68;color:#fff}
+  @media(max-width:600px){
+    .tv-import table{font-size:14px}
+    .tv-import th,.tv-import td{padding:3px 2px}
+    .tv-import th{font-size:13px}
+    .tv-import td:not(:first-child){font-size:12px}
+    .tv-import input,.tv-import select{font-size:12px;padding:5px;min-height:35px}
+    .tv-import .grid{grid-template-columns:1fr}
+  }
+  .tv-import .yeonju-table .headend-label{vertical-align:middle;font-size:15px}
+  .tv-import .yeonju-table .imc-label{vertical-align:middle;font-size:13px;line-height:1.35}
+  .tv-import .yeonju-table .wide-mode{min-width:0;width:28%}
+  .tv-import .yeonju-table select{width:100%;min-width:0;max-width:100%;box-sizing:border-box;display:block}
+  @media(max-width:600px){
+    .tv-import .yeonju-table select{font-size:11px;padding:4px 2px}
+  }
+  .tv-import .yeonju-table td{overflow:hidden}
+  .tv-import .yeonju-table select[name="ymode"],
+  .tv-import .yeonju-table select[name="ysw"],
+  .tv-import .yeonju-table select[name="esw"],
+  .tv-import .yeonju-table select[name="gpssw"]{width:100% !important;min-width:0 !important;max-width:100% !important;margin:0 !important;box-sizing:border-box !important;}
+  .tv-import .time-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
+  .tv-import .time-item{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px}
+  .tv-import .time-item span{font-size:13px;font-weight:bold;white-space:nowrap;color:#4f5d68}
+  .tv-import .time-item input{min-width:0}
+  .tv-import .work-time-row{margin-top:8px}
+  @media(max-width:600px){
+    .tv-import .time-row{gap:6px}
+    .tv-import .time-item{grid-template-columns:auto 1fr;gap:4px}
+    .tv-import .time-item span{font-size:11px}
+  }
+  .tv-import .date-display{text-align:center;font-size:17px;font-weight:bold;color:#314d68;padding:0}
+  .tv-import .date-nav-row{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 4px 5px}
+  .tv-import .dow-inline{display:none}
+  .tv-import .dnbtn{width:34px;height:34px;flex:0 0 auto;border-radius:8px;border:1px solid #b8c3cc;background:#fff;color:#314d68;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1;padding:0}
+  .tv-import .todaybtn2{flex:0 0 auto;height:34px;padding:0 12px;border-radius:8px;border:1px solid #b8c3cc;background:#fff;color:#1f7a5c;font-size:13px;font-weight:700;white-space:nowrap}
+  .tv-import .yeonju-table .item-label{font-size:12px !important;font-weight:400 !important;line-height:1.15;}
+  .tv-import input[list]{width:100%;min-width:0;box-sizing:border-box;}
+  .tv-import .yeonju-table input[list]{font-size:11px;padding:4px 2px;min-height:35px;}
+  .tv-import td, .tv-import th, .tv-import td input, .tv-import td select, .tv-import td textarea, .tv-import input[list]{text-align:center;}
+  .tv-import .electrical-table{width:100%;border-collapse:collapse;table-layout:fixed;margin:0;}
+  .tv-import .electrical-table col{width:14.2857%}
+  .tv-import .electrical-table td:empty{background:#fff;}
+  .tv-import .electrical-table td{border:1px solid #aeb8c1;padding:4px;text-align:center;vertical-align:middle;font-weight:400;font-size:13px;background:#fff;line-height:1.25;word-break:keep-all;white-space:normal;}
+  .tv-import .electrical-table td:first-child{background:#fff;font-weight:400;}
+  .tv-import .electrical-table input:not([type="checkbox"]){width:100%;min-width:0;box-sizing:border-box;text-align:center;font-size:14px;}
+  .tv-import .electrical-table input[list]{font-size:12px;padding:5px;min-height:35px;}
+  .tv-import .electrical-table .environment-label{font-size:13px !important;font-weight:600 !important;line-height:1.35;word-break:keep-all;white-space:normal;}
+  @media(max-width:600px){
+    .tv-import .electrical-table td{font-size:12px;padding:3px 2px;line-height:1.25;}
+    .tv-import .electrical-table input:not([type="checkbox"]){font-size:12px;padding:5px;min-height:35px;}
+    .tv-import .electrical-table input[list]{font-size:11px;padding:4px 2px;min-height:35px;}
+  }
+  .tv-import .yeonju-table tr:nth-child(3) td:first-child{font-size:13px !important;font-weight:400 !important;}
+
+  /* =======================================================
+     라디오현업일지 — scoped styles copied from uploaded file
+     ======================================================= */
+  :root{
+    --r-navy:#314d68; --r-navy2:#45647f; --r-line:#b8c2cb; --r-bg:#eef2f5;
+    --r-card:#fff; --r-head:#e3eaf0; --r-sub:#f4f7f9; --r-text:#1e2933; --r-muted:#64717d;
+  }
+  .radio-import *{box-sizing:border-box}
+  .radio-import{background:var(--r-bg);font-family:"Malgun Gothic","Noto Sans KR",Arial,sans-serif;font-size:14px;color:var(--r-text);}
+  .radio-import header{position:sticky;top:0;z-index:5;background:#314d68;color:#fff;padding:14px;box-shadow:0 2px 7px #0003}
+  .radio-import header h1{margin:0;font-size:21px;font-weight:bold;}
+  .radio-import .container{max-width:760px;margin:auto;padding:10px}
+  .radio-import .card{background:var(--r-card);border:1px solid #d5dde4;border-radius:12px;margin:9px 0;overflow:hidden;box-shadow:0 1px 3px #0000000d}
+  .radio-import .card-title{background:var(--r-head);padding:10px 12px;font-weight:800;color:#28435b;border-bottom:1px solid var(--r-line);font-size:15px}
+  .radio-import .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:11px}
+  .radio-import .field label{display:block;font-size:12px;color:var(--r-muted);font-weight:700;margin:0 0 4px}
+  .radio-import input,.radio-import textarea,.radio-import select{width:100%;border:1px solid #b9c4cd;border-radius:7px;background:#fff;padding:10px 9px;font-size:15px;min-height:42px;color:var(--r-text);outline:none}
+  .radio-import input:focus,.radio-import textarea:focus,.radio-import select:focus{border-color:#537795;box-shadow:0 0 0 2px #53779522}
+  .radio-import textarea{min-height:160px;resize:vertical}
+  .radio-import .full{grid-column:1/-1}
+  .radio-import .section{padding:10px 11px}
+  .radio-import .subhead{font-weight:800;color:#344f67;background:var(--r-sub);border:1px solid var(--r-line);padding:8px;border-radius:7px 7px 0 0}
+  .radio-import table{width:100%;border-collapse:collapse;table-layout:fixed}
+  .radio-import th,.radio-import td{border:1px solid var(--r-line);padding:5px;text-align:center;vertical-align:middle}
+  .radio-import th{background:var(--r-sub);font-size:12px;color:#3d4e5c}
+  .radio-import td:first-child{font-weight:700;background:#fafbfc}
+  .radio-import td input, .radio-import td select{min-height:36px;padding:6px;font-size:14px;border-radius:5px;text-align:center}
+  .radio-import .check{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:38px;width:100%;cursor:pointer}
+  .radio-import .check input[type="checkbox"]{
+    appearance:none;-webkit-appearance:none;-moz-appearance:none;
+    width:23px;height:23px;min-width:23px;min-height:23px;padding:0;margin:0;
+    border:2px solid #b9c4cd;border-radius:5px;background-color:#fff;cursor:pointer;
+    background-repeat:no-repeat;background-position:center;background-size:14px 14px;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  .radio-import .check input[type="checkbox"]:checked{
+    background-color:var(--r-navy);border-color:var(--r-navy);
+    background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke="white" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+  }
+  .radio-import #radioForm.show-status .check input[type="checkbox"]:not(:checked){
+    background-color:#c0392b;border-color:#c0392b;
+    background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="white" stroke-width="3.4" fill="none" stroke-linecap="round"/></svg>');
+  }
+  /* PIC card checkboxes represent equipment selection, not normal/abnormal status — exclude from red-X flag */
+  .radio-import #radioForm.show-status #picCard .check input[type="checkbox"]:not(:checked){
+    background-color:#fff;border-color:#b9c4cd;background-image:none;
+  }
+  .radio-import .btnbar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;padding:10px 0 4px}
+  .radio-import button{border:0;border-radius:8px;padding:12px 8px;font-weight:800;font-size:14px;cursor:pointer}
+  .radio-import .save{background:var(--r-navy);color:#fff}
+  .radio-import .print{background:var(--r-navy);color:#fff}
+  .radio-import .clear{background:var(--r-navy);color:#fff}
+  @media(max-width:520px){
+    .radio-import .grid{grid-template-columns:1fr}
+    .radio-import table{font-size:12px}
+    .radio-import th,.radio-import td{padding:4px 2px}
+    .radio-import td input{font-size:13px;padding:5px}
+  }
+  .radio-import .merged-net{vertical-align:middle !important;text-align:center !important;line-height:1.5;}
+  .radio-import .date-display{text-align:center;font-size:17px;font-weight:bold;color:#314d68;padding:0}
+  .radio-import .date-nav-row{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 4px 5px}
+  .radio-import .dow-inline{display:none}
+  .radio-import .dnbtn{width:34px;height:34px;flex:0 0 auto;border-radius:8px;border:1px solid #b9c4cd;background:#fff;color:#314d68;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1;padding:0}
+  .radio-import .todaybtn2{flex:0 0 auto;height:34px;padding:0 12px;border-radius:8px;border:1px solid #b9c4cd;background:#fff;color:#1f7a5c;font-size:13px;font-weight:700;white-space:nowrap}
+
+  /* =======================================================
+     업무보고 (주간업무보고 / 제작일지 / 보수(점검)일지)
+     — TV·라디오 현업일지와 같은 색·카드·표·버튼 스타일
+     ======================================================= */
+  .wr-import *{box-sizing:border-box}
+  .wr-import{background:#eef2f5;color:#202a33;font-family:"Malgun Gothic","Noto Sans KR",Arial,sans-serif;font-size:14px;}
+  .wr-import header{position:sticky;top:0;z-index:5;background:#314d68;color:#fff;padding:14px;box-shadow:0 2px 7px #0003;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .wr-import h1{margin:0;font-size:21px;font-weight:bold;}
+  .wr-import .wrap{max-width:900px;margin:auto;padding:8px}
+  .wr-import .card{background:#fff;margin:8px 0;border:1px solid #cbd4dc;border-radius:9px;overflow:hidden}
+  .wr-import .title{background:#e7edf2;padding:9px 11px;font-weight:bold;color:#29445b;border-bottom:1px solid #adb9c3;display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .wr-import .title small{font-size:12px;font-weight:400;color:#66737e;text-align:right}
+  .wr-import .sec{padding:9px}
+  .wr-import table{width:100%;border-collapse:collapse;table-layout:fixed}
+  .wr-import th,.wr-import td{border:1px solid #aeb8c1;padding:4px;text-align:center;vertical-align:middle;font-weight:400}
+  .wr-import th{background:#f3f6f8;font-size:13px;font-weight:600}
+  .wr-import td.no{background:#fafbfc;font-weight:600;font-size:12px;padding:4px 2px}
+  .wr-import .w-no{width:30px}
+  .wr-import .w-date{width:21%}
+  .wr-import .w-last{width:22%}
+  .wr-import input,.wr-import select,.wr-import textarea{width:100%;min-height:38px;border:1px solid #b8c3cc;border-radius:6px;padding:7px;font-size:14px;background:#fff;font-family:inherit;color:#202a33}
+  .wr-import textarea{resize:none;overflow:hidden;text-align:left}
+  .wr-import td input{text-align:center;font-size:13px;padding:5px 3px}
+  .wr-import td textarea{font-size:13px;line-height:18px;padding:9px 6px}
+  .wr-import table.info{table-layout:fixed}
+  .wr-import table.info td.lbl{width:17%;background:#f3f6f8;font-weight:700;font-size:12px;color:#4f5d68;word-break:keep-all;padding:4px 2px}
+  .wr-import table.info td input{width:100%}
+  /* 일자·시간 칸: 기기 기본 화면(꺽쇠·아이콘)을 쓰지 않고, 값을 글자로 가운데에 보여주며 투명한 입력란이 위를 덮어 눌러서 선택 */
+  .wr-import .dt-wrap{position:relative;display:flex;align-items:center;justify-content:center;width:100%;min-height:38px;border:1px solid #b8c3cc;border-radius:6px;background:#fff;font-size:13px;color:#202a33}
+  .wr-import .dt-wrap .dt-text{pointer-events:none;white-space:nowrap}
+  .wr-import .dt-wrap input{position:absolute;top:0;left:0;width:100%;height:100%;min-height:0;margin:0;padding:0;border:0;opacity:0;cursor:pointer}
+  /* 목록 선택(드랍다운) 입력란: 화살표가 글자 자리를 차지하지 않게 하고 글자는 가운데 */
+  .tv-import input[list],.radio-import input[list],.wr-import input[list]{position:relative;text-align:center}
+  .tv-import input[list]::-webkit-calendar-picker-indicator,.radio-import input[list]::-webkit-calendar-picker-indicator,.wr-import input[list]::-webkit-calendar-picker-indicator{position:absolute;top:0;right:0;width:28px;height:100%;margin:0;padding:0;opacity:0;background:none;cursor:pointer}
+  select{text-align:center;text-align-last:center}
+  @media print{ .wr-import .dt-wrap{border:0 !important} }
+  .wr-import input:focus,.wr-import textarea:focus{outline:0;border-color:#537795;box-shadow:0 0 0 2px #53779522}
+  .wr-import .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:11px}
+  .wr-import .field label{display:block;font-size:12px;color:#66737e;font-weight:700;margin:0 0 3px}
+  .wr-import .grid .field{display:flex;align-items:center;gap:8px}
+  .wr-import .grid .field label{flex:0 0 78px;margin:0;white-space:nowrap}
+  .wr-import .grid .field input{flex:1 1 auto;min-width:0}
+  @media(max-width:480px){
+    .wr-import .grid{gap:6px;padding:8px}
+    .wr-import .grid .field{gap:4px}
+    .wr-import .grid .field label{flex:0 0 54px;font-size:11px;white-space:normal;line-height:1.2}
+    .wr-import .grid .field input{padding:6px 4px;font-size:12px}
+  }
+  .wr-import .special textarea,.wr-import .memo-area{min-height:110px}
+  .wr-import button{border:0;border-radius:7px;padding:12px;font-weight:bold;font-size:14px;cursor:pointer;font-family:inherit}
+  .wr-import .save,.wr-import .print,.wr-import .clear,.wr-import .logbtn{background:#314d68;color:#fff}
+  .wr-import .ghost{background:#fff;border:1px solid #b8c3cc;color:#314d68}
+  .wr-import .ghost.danger{color:#b23b3b;border-color:#e0b4b4}
+  .wr-import .rowbtns{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}
+  .wr-import .rowbtns button{padding:8px 12px;font-size:12.5px}
+  .wr-import .notice-trigger{padding:5px 12px;font-size:12px;border-radius:999px;background:#314d68;color:#fff;border:1px solid #314d68}
+  .wr-import .bottom{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;padding:10px 0 4px}
+  .wr-import .wr-tools{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:4px 0}
+  .wr-import .wr-tools .wide{grid-column:1/-1;padding:10px;font-size:13px}
+  .wr-import .wr-items{display:flex;gap:6px;padding:10px 2px 0}
+  .wr-import .wr-chip{display:inline-block;background:#314d68;color:#fff;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700}
+  .wr-import .date-nav-row{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 4px 5px}
+  .wr-import .date-display{text-align:center;font-size:16px;font-weight:bold;color:#314d68;padding:0;min-width:0;line-height:1.3}
+  .wr-import .wr-sub{display:block;font-size:12px;font-weight:400;color:#66737e}
+  .wr-import .dnbtn{width:34px;height:34px;flex:0 0 auto;border-radius:8px;border:1px solid #b8c3cc;background:#fff;color:#314d68;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1;padding:0}
+  .wr-import .todaybtn2{flex:0 0 auto;height:34px;padding:0 12px;border-radius:8px;border:1px solid #b8c3cc;background:#fff;color:#1f7a5c;font-size:13px;font-weight:700;white-space:nowrap}
+  .wr-import .wr-stat{min-height:18px;margin:6px 0 0;font-size:12px;color:#8b8a82;text-align:center}
+  .wr-import .wr-stat.dirty{color:#b45309}
+  .wr-import .wr-stat.err{color:#b3382c}
+  .wr-import .wr-foot{margin:2px 4px 0;text-align:right;font-size:12px;color:#66737e}
+  .wr-import .wr-hint{margin:8px 4px 0;font-size:12px;line-height:1.5;color:#8b8a82}
+  .wr-import .wr-loading .card{opacity:.55;pointer-events:none}
+  .wr-import .wr-x{background:transparent;border:1px solid #ffffff88;color:#fff;padding:7px 14px;font-size:13px}
+  .wr-print-head{display:none;justify-content:space-between;align-items:flex-start;gap:12px;margin:0 0 8px}
+  .wr-print-head .ph-title{font-size:24px;font-weight:bold;letter-spacing:.3em;color:#314d68}
+  .wr-print-head .ph-sub{font-size:13px;color:#66737e;margin-top:2px}
+  .wr-import table.sign{width:auto;table-layout:auto}
+  .wr-import table.sign th{width:24mm}
+  .wr-import table.sign td{height:16mm}
+  /* 일지 작성 창 (전체 화면) */
+  .wl-overlay{display:none;position:fixed;inset:0;z-index:90;background:#eef2f5;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .wl-overlay.open{display:block}
+  .wl-overlay .wl-panel{max-width:560px;margin:0 auto;min-height:100dvh;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+  @media(max-width:600px){
+    .wr-import .w-date{width:22%}
+    .wr-import .w-last{width:23%}
+    .wr-import th{font-size:12px}
+    .wr-import td input{font-size:12px}
+    .wr-import td textarea{font-size:12.5px}
+  }
+  @media print{
+    .wr-import{background:#fff !important}
+    .wr-import header,.wr-import .date-nav-row,.wr-import .wr-items,.wr-import .wr-tools,.wr-import .bottom,
+    .wr-import .rowbtns,.wr-import .notice-trigger,.wr-import .wr-stat,.wr-import .wr-hint{display:none !important}
+    .wr-print-head{display:flex}
+    .wr-import .wrap{max-width:none;padding:0}
+    .wr-import .card{break-inside:avoid;box-shadow:none}
+    .wr-import tr{break-inside:avoid}
+    .wr-import td input,.wr-import td textarea{border:0 !important;box-shadow:none !important}
+    .wr-import textarea{overflow:visible}
+    .wr-import input::placeholder,.wr-import textarea::placeholder{color:transparent !important}
+    .wl-overlay{display:none !important}
+    body.printing-log #app{display:none !important}
+    body.printing-log .wl-overlay.open{display:block !important;position:static;overflow:visible;background:#fff}
+    body.printing-log .wl-overlay .wl-panel{max-width:none;min-height:0;padding:0}
+  }
+  .wr-import .dnbtn:disabled{opacity:.3;cursor:default}
+  .wr-import .title .wr-tl{display:flex;align-items:baseline;gap:8px;min-width:0;flex-wrap:wrap}
+  .wr-import .title .wr-tl small{text-align:left}
+
+  /* ===== 인쇄: 문서 폭을 A4 전체로, 칸 높이는 글 길이에 맞춰 ===== */
+  .pt-copy{display:none}
+  @page{size:A4;margin:10mm}
+  @media print{
+    #app{max-width:none !important;width:100% !important}
+    .page{min-height:0 !important;padding-bottom:0 !important}
+    .tv-import .wrap,.radio-import .container,.wr-import .wrap{max-width:none !important;padding-left:0;padding-right:0}
+    .pt-hide{display:none !important}
+    .pt-copy{display:block;white-space:pre-wrap;word-break:break-word;text-align:left;font-size:14px;line-height:1.4;color:#202a33;border:1px solid #b8c3cc;border-radius:6px;padding:8px;min-height:56px}
+    .pt-copy.in-cell{border:0;border-radius:0;padding:3px 5px;min-height:0;font-size:13px;line-height:1.35}
+    .wr-import td input,.wr-import td textarea{height:auto !important;min-height:0 !important}
+    .wr-import td input:not([type="checkbox"]){padding:3px !important}
+    .wr-import .dt-wrap{min-height:0 !important;padding:3px 0}
+    .tv-import td input:not([type="checkbox"]),.radio-import td input:not([type="checkbox"]){min-height:30px !important;padding-top:2px !important;padding-bottom:2px !important}
+  }
+
+  /* ===== 로그인 화면 ===== */
+  body.locked #app{display:none !important}
+  #loginView{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;background:#eef2f5;padding:20px}
+  body.locked #loginView{display:flex}
+  #loginView .lg-box{width:100%;max-width:360px;background:#fff;border:1px solid #cbd4dc;border-radius:14px;padding:26px 22px;box-shadow:0 6px 24px #0002;font-family:"Malgun Gothic","Noto Sans KR",Arial,sans-serif}
+  #loginView h1{margin:0 0 4px;font-size:22px;color:#314d68;text-align:center}
+  #loginView .lg-sub{margin:0 0 18px;text-align:center;font-size:13px;color:#66737e}
+  #loginView label{display:block;font-size:12px;font-weight:700;color:#66737e;margin:10px 0 4px}
+  #loginView input{width:100%;box-sizing:border-box;min-height:44px;border:1px solid #b8c3cc;border-radius:8px;padding:10px;font-size:16px;font-family:inherit}
+  #loginView button{width:100%;min-height:46px;border:0;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+  #loginView .lg-go{background:#314d68;color:#fff;margin-top:16px}
+  #loginView .lg-go:disabled{opacity:.5}
+  #loginView .lg-reset{background:transparent;color:#314d68;margin-top:6px;font-size:13px;font-weight:600;min-height:36px}
+  #loginView .lg-msg{min-height:20px;margin-top:10px;font-size:13px;text-align:center;color:#c0392b}
+  #loginView .lg-msg.ok{color:#1f7a5c}
+  #logoutBtn{position:fixed;top:6px;right:6px;z-index:60;display:none;border:1px solid #b8c3cc;background:#ffffffd9;color:#4f5d68;border-radius:14px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer}
+  body:not(.locked) #logoutBtn{display:block}
+  @media print{ #logoutBtn,#loginView{display:none !important} }
+</style>
+</head>
+<body class="locked">
+<div id="loginView">
+  <form class="lg-box" id="loginForm" autocomplete="on">
+    <h1>현업일지</h1>
+    <p class="lg-sub">허용된 계정으로 로그인하세요</p>
+    <label for="lgEmail">이메일</label>
+    <input id="lgEmail" type="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" required>
+    <label for="lgPw">비밀번호</label>
+    <input id="lgPw" type="password" autocomplete="current-password" required>
+    <button type="submit" class="lg-go" id="lgGo">로그인</button>
+    <button type="button" class="lg-reset" id="lgReset">비밀번호를 잊으셨나요? 재설정 메일 받기</button>
+    <div class="lg-msg" id="lgMsg" role="alert"></div>
+  </form>
+</div>
+<button type="button" id="logoutBtn">로그아웃</button>
+<div id="app">
+
+  <!-- =================== TAB 1: 달력 =================== -->
+  <div id="page-calendar" class="page"></div>
+
+  <!-- =================== TAB 2: TV 현업일지 =================== -->
+  <div id="page-tv" class="page hidden">
+    <div class="tv-import">
+      <header><h1>TV 현업일지</h1></header>
+      <div class="wrap">
+        <div class="date-nav-row">
+          <button type="button" class="dnbtn" id="tvDayPrev">‹</button>
+          <div class="date-display" id="tvDateDisplay"><span id="tvDateMain"></span> <span class="dow-inline" id="tvDateDow"></span></div>
+          <button type="button" class="dnbtn" id="tvDayNext">›</button>
+          <button type="button" class="todaybtn2" id="tvTodayBtn">오늘</button>
+        </div>
+
+        <form id="tvForm">
+        <div class="card"><div class="title">근무자</div><div class="sec"><table>
+        <thead><tr><th>근무자</th><th>일근</th><th>야근</th><th>조근</th></tr></thead><tbody>
+        <tr><td>TD</td><td><input list="tdList" name="td1" autocomplete="off"></td><td><input list="tdList" name="td2" autocomplete="off"></td><td><input list="tdList" name="td3" autocomplete="off"></td></tr>
+        <tr><td>AUD</td><td><input list="audList" name="aud1" autocomplete="off"></td><td><input list="audList" name="aud2" autocomplete="off"></td><td><input list="audList" name="aud3" autocomplete="off"></td></tr>
+        <tr><td>MD</td><td><input list="mdList" name="md1" autocomplete="off"></td><td><input list="mdList" name="md2" autocomplete="off"></td><td><input list="mdList" name="md3" autocomplete="off"></td></tr>
+        <tr><td>CG</td><td><input list="cgList" name="cg1" autocomplete="off"></td><td><input list="cgList" name="cg2" autocomplete="off"></td><td><input list="cgList" name="cg3" autocomplete="off"></td></tr>
+        </tbody></table>
+        <div class="time-row work-time-row">
+          <div class="time-item"><span>방송종료시간</span><input type="time" name="end"></div>
+          <div class="time-item"><span>방송개시시간</span><input type="time" name="start"></div>
+        </div>
+        </div></div>
+
+        <div class="card"><div class="title">연주소</div><div class="sec">
+        <table class="yeonju-table"><tbody>
+        <tr><td rowspan="4" class="headend-label">Head<br>End</td><td>무순단<br>모드</td><td>무순단<br>S/W</td><td>엔코더<br>S/W</td><td>엔코더<br>1</td><td>엔코더<br>2</td><td>엔코더<br>3</td></tr>
+        <tr><td><input name="ymode" list="list-ymode" autocomplete="off" placeholder=""></td><td><input name="ysw" list="list-ysw" autocomplete="off" placeholder=""></td><td><input name="esw" list="list-esw" autocomplete="off" placeholder=""></td><td><label class="check"><input type="checkbox" name="enc1"></label></td><td><label class="check"><input type="checkbox" name="enc2"></label></td><td><label class="check"><input type="checkbox" name="enc3"></label></td></tr>
+        <tr><td>Sync<br>(주)</td><td>Sync<br>(예)</td><td>자막<br>코더(주)</td><td>자막<br>코더(예)</td><td>라우드니스</td><td></td></tr>
+        <tr><td><label class="check"><input type="checkbox" name="sync1"></label></td><td><label class="check"><input type="checkbox" name="sync2"></label></td><td><label class="check"><input type="checkbox" name="cap1"></label></td><td><label class="check"><input type="checkbox" name="cap2"></label></td><td><label class="check"><input type="checkbox" name="loud"></label></td><td></td></tr>
+        <tr><td rowspan="4" class="imc-label">IMC<br>시스템</td><td>NDD<br>(주)</td><td>NDD<br>(예)</td><td>IMCO<br>(주)</td><td>IMCO<br>(예)</td><td>PSIP<br>(주)</td><td>PSIP<br>(예)</td></tr>
+        <tr><td><label class="check"><input type="checkbox" name="ndd1"></label></td><td><label class="check"><input type="checkbox" name="ndd2"></label></td><td><label class="check"><input type="checkbox" name="imco1"></label></td><td><label class="check"><input type="checkbox" name="imco2"></label></td><td><label class="check"><input type="checkbox" name="psip1"></label></td><td><label class="check"><input type="checkbox" name="psip2"></label></td></tr>
+        <tr><td class="item-label">DMC<br>(주)</td><td>DMC<br>(예)</td><td>GPS<br>S/W</td><td>GPS<br>(주)</td><td>GPS<br>(예)</td><td>DB서버</td></tr>
+        <tr><td><label class="check"><input type="checkbox" name="dmc1"></label></td><td><label class="check"><input type="checkbox" name="dmc2"></label></td><td><input name="gpssw" list="list-gpssw" autocomplete="off" placeholder=""></td><td><label class="check"><input type="checkbox" name="gps1"></label></td><td><label class="check"><input type="checkbox" name="gps2"></label></td><td><label class="check"><input type="checkbox" name="db"></label></td></tr>
+        <tr><td rowspan="2">M/W<br>DMB</td><td>M/W<br>6G</td><td>M/W<br>11G</td><td>M/W PS<br>전압</td><td>M/W PS<br>전류</td><td>DMB MUX<br>(주)</td><td>DMB MUX<br>(예)</td></tr>
+        <tr><td><label class="check"><input type="checkbox" name="mw6"></label></td><td><label class="check"><input type="checkbox" name="mw11"></label></td><td><input name="mwv"></td><td><input name="mwa"></td><td><label class="check"><input type="checkbox" name="mux1"></label></td><td><label class="check"><input type="checkbox" name="mux2"></label></td></tr>
+        </tbody></table></div></div>
+
+        <div class="card break-page"><div class="title">전기 환경</div><div class="sec"><table class="electrical-table"><colgroup><col><col><col><col><col><col><col></colgroup><tbody><tr><td rowspan="6" class="environment-label">전기<br>환경</td><td>UPS실 전압 R</td><td>UPS실 전압 S</td><td>UPS실 전압 T</td><td>UPS실 전류 R</td><td>UPS실 전류 S</td><td>UPS실 전류 T</td></tr><tr><td><input name="upsVr"></td><td><input name="upsVs"></td><td><input name="upsVt"></td><td><input name="upsAr"></td><td><input name="upsAs"></td><td><input name="upsAt"></td></tr><tr><td>R UPS(%)</td><td>TV UPS(%)</td><td>조명 UPS(%)</td><td>UPS실 온도</td><td>기계실 PDP1 전압</td><td>기계실 PDP1 전류</td></tr><tr><td><input name="rups"></td><td><input name="tvups"></td><td><input name="lightups"></td><td><input name="upstemp"></td><td><input name="pdp1v"></td><td><input name="pdp1a"></td></tr><tr><td>ATS S/W</td><td>기계실 PDP2 전류</td><td>기계실 온도</td><td></td><td></td><td></td></tr><tr><td><input name="ats" list="list-ats" autocomplete="off" placeholder=""></td><td><input name="pdp2a"></td><td><input name="machtemp"></td><td></td><td></td><td></td></tr></tbody></table></div></div>
+
+        <div class="card"><div class="title">대룡산 송신소</div><div class="sec">
+        <table><tbody>
+        <tr><td rowspan="2">DTV</td><th>송신기</th><th>출력</th><th>REF</th><th>PIC</th><th>원격제어</th></tr>
+        <tr><td><input name="dtvtx" list="list-dtvtx" autocomplete="off" placeholder=""></td><td><input name="dtvp"></td><td><input name="dtvr"></td><td><input name="dtvpic" list="list-dtvpic" autocomplete="off" placeholder=""></td><td><label class="check"><input type="checkbox" name="dtvremote"></label></td></tr>
+        <tr><td>DMB</td><td><input name="dmbtx" list="list-dmbtx" autocomplete="off" placeholder=""></td><td><input name="dmbp"></td><td><input name="dmbr"></td><td><input name="dmbpic" list="list-dmbpic" autocomplete="off" placeholder=""></td><td><label class="check"><input type="checkbox" name="dmbremote"></label></td></tr>
+        <tr><td rowspan="2">한전전압</td><td>R</td><td>S</td><td>T</td><td>발전기</td><td></td></tr>
+        <tr><td><input name="dr"></td><td><input name="ds"></td><td><input name="dt"></td><td><label class="check"><input type="checkbox" name="dg1"></label></td><td></td></tr>
+        <tr><td rowspan="2">UPS<br>전압</td><td>R</td><td>S</td><td>T</td><td></td><td></td></tr>
+        <tr><td><input name="dupsr"></td><td><input name="dupss"></td><td><input name="dupst"></td><td></td><td></td></tr>
+        <tr><td rowspan="2">기타</td><td>기계실<br>온도</td><td>발전실<br>온도</td><td>통신상태(주)</td><td>통신상태(예)</td><td></td></tr>
+        <tr><td><input name="dtemp1"></td><td><input name="dtemp2"></td><td><label class="check"><input type="checkbox" name="dcomm1"></label></td><td><label class="check"><input type="checkbox" name="dcomm2"></label></td><td></td></tr>
+        </tbody></table></div></div>
+
+        <div class="card"><div class="title">화악산 송신소</div><div class="sec">
+        <table><tbody>
+        <tr><td rowspan="2">DTV</td><th>송신기</th><th>출력</th><th>REF</th><th>PIC</th><th>원격제어</th></tr>
+        <tr><td><input name="htx" list="list-htx" autocomplete="off" placeholder=""></td><td><input name="hp"></td><td><input name="hr"></td><td><input name="hpic" list="list-hpic" autocomplete="off" placeholder=""></td><td><label class="check"><input type="checkbox" name="hremote"></label></td></tr>
+        <tr><td rowspan="2">한전전압</td><td>R</td><td>S</td><td>T</td><td>발전기(주)</td><td>발전기(예)</td></tr>
+        <tr><td><input name="hr1"></td><td><input name="hs"></td><td><input name="ht"></td><td><label class="check"><input type="checkbox" name="hg1"></label></td><td><label class="check"><input type="checkbox" name="hg2"></label></td></tr>
+        <tr class="break-page-row"><td rowspan="2">기타</td><td>UPS전압</td><td>전기실<br>온도</td><td>송신실<br>온도</td><td>통신상태(주)</td><td>통신상태(예)</td></tr>
+        <tr><td><input name="hups"></td><td><input name="het"></td><td><input name="htt"></td><td><label class="check"><input type="checkbox" name="hc1"></label></td><td><label class="check"><input type="checkbox" name="hc2"></label></td></tr>
+        </tbody></table></div></div>
+
+        <div class="card"><div class="title card-title-row"><span>기타 전달사항</span><button type="button" class="notice-trigger" id="tvNoticeBtn">공지</button></div><div class="sec"><textarea name="memo" placeholder="고장·조치사항·전달사항을 입력하세요"></textarea></div></div>
+        </form>
+
+        <div class="bottom">
+          <button type="button" class="save" id="tvSaveBtn">저장</button>
+          <button type="button" class="print" id="tvPrintBtn">인쇄 / PDF</button>
+          <button type="button" class="clear" id="tvClearBtn">전체 지우기</button>
+        </div>
+
+        <datalist id="tdList"><option value="안경재"><option value="김정림"><option value="김영훈"><option value="신성원"></datalist>
+        <datalist id="audList"><option value="황인조"><option value="성백인"><option value="이석용"></datalist>
+        <datalist id="mdList"><option value="남궁옥"><option value="박미숙"><option value="홍수영"></datalist>
+        <datalist id="cgList"><option value="최가을"><option value="경하윤"><option value="김은혜"></datalist>
+        <datalist id="list-ymode"><option value="Auto"><option value="Man"></datalist>
+        <datalist id="list-ysw"><option value="1"><option value="2"><option value="3"></datalist>
+        <datalist id="list-esw"><option value="A"><option value="B"></datalist>
+        <datalist id="list-gpssw"><option value="A"><option value="B"></datalist>
+        <datalist id="list-dtvtx"><option value="A"><option value="B"></datalist>
+        <datalist id="list-dmbtx"><option value="A"><option value="B"></datalist>
+        <datalist id="list-htx"><option value="A"><option value="B"></datalist>
+        <datalist id="list-dtvpic"><option value="1"><option value="2"><option value="3"><option value="4"></datalist>
+        <datalist id="list-dmbpic"><option value="1"><option value="2"><option value="3"><option value="4"></datalist>
+        <datalist id="list-hpic"><option value="1"><option value="2"><option value="3"><option value="4"></datalist>
+        <datalist id="list-ats"><option value="TV"><option value="라디오"></datalist>
+      </div>
+    </div>
+  </div>
+
+  <!-- =================== TAB 3: 라디오 현업일지 =================== -->
+  <div id="page-radio" class="page hidden">
+    <div class="radio-import">
+      <header><h1>RADIO 현업일지</h1></header>
+      <main class="container">
+        <div class="date-nav-row">
+          <button type="button" class="dnbtn" id="radioDayPrev">‹</button>
+          <div class="date-display" id="radioDateDisplay"><span id="radioDateMain"></span> <span class="dow-inline" id="radioDateDow"></span></div>
+          <button type="button" class="dnbtn" id="radioDayNext">›</button>
+          <button type="button" class="todaybtn2" id="radioTodayBtn">오늘</button>
+        </div>
+
+        <form id="radioForm">
+        <div class="card">
+          <div class="card-title">근무자</div>
+          <div class="grid">
+            <div class="field full">
+              <input name="worker" list="radioWorkerList" autocomplete="off" placeholder="근무자 선택 또는 직접 입력">
+              <datalist id="radioWorkerList">
+                <option value="안경재"><option value="김정림"><option value="김영훈"><option value="신성원">
+              </datalist>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+        <div class="card-title">송신소 점검</div>
+        <div class="section">
+        <table>
+        <thead><tr><th>구분</th><th>송신기</th><th>출력</th><th>REF</th><th>PIC 상태</th><th>원격 제어</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>표준FM</td>
+          <td><input name="std_tx" list="txList" autocomplete="off"></td>
+          <td><input name="std_power"></td>
+          <td><input name="std_ref"></td>
+          <td><input name="std_pic" list="picList" autocomplete="off"></td>
+          <td><label class="check"><input type="checkbox" name="std_remote"></label></td>
+        </tr>
+        <tr>
+          <td>음악FM</td>
+          <td><input name="music_tx" list="txList" autocomplete="off"></td>
+          <td><input name="music_power"></td>
+          <td><input name="music_ref"></td>
+          <td><input name="music_pic" list="picList" autocomplete="off"></td>
+          <td><label class="check"><input type="checkbox" name="music_remote"></label></td>
+        </tr>
+        </tbody>
+        </table>
+        <datalist id="txList"><option value="A"><option value="B"></datalist>
+        <datalist id="picList"><option value="1"><option value="2"><option value="3"></datalist>
+        </div>
+
+        <div class="section">
+        <div class="subhead">UPS & 환경</div>
+        <table>
+        <thead><tr><th>상</th><th>입력전압</th><th>출력전압</th><th>부하량</th><th>온도</th></tr></thead>
+        <tbody>
+        <tr><td>R</td><td><input name="ups_r_in"></td><td><input name="ups_r_out"></td><td><input name="ups_r_load"></td><td rowspan="3"><input name="ups_temp"></td></tr>
+        <tr><td>S</td><td><input name="ups_s_in"></td><td><input name="ups_s_out"></td><td><input name="ups_s_load"></td></tr>
+        <tr><td>T</td><td><input name="ups_t_in"></td><td><input name="ups_t_out"></td><td><input name="ups_t_load"></td></tr>
+        </tbody>
+        </table>
+        </div>
+        </div>
+
+        <div class="card">
+        <div class="card-title">NET 및 도권망</div>
+        <div class="section">
+        <table>
+        <thead>
+        <tr>
+          <th>항목</th>
+          <th rowspan="2" class="merged-net">NET<br>통합망</th>
+          <th>표준FM<br>주/예</th>
+          <th>음악FM<br>주/예</th>
+          <th rowspan="2" class="merged-net">IP<br>CODEC</th>
+          <th>표준FM<br>주/예</th>
+          <th>음악FM<br>주/예</th>
+        </tr>
+        <tr>
+          <th>상태</th>
+          <th><label class="check"><input type="checkbox" name="net_std"></label></th>
+          <th><label class="check"><input type="checkbox" name="net_music"></label></th>
+          <th><label class="check"><input type="checkbox" name="codec_std"></label></th>
+          <th><label class="check"><input type="checkbox" name="codec_music"></label></th>
+        </tr>
+        </thead>
+        </table>
+        <br>
+        <table>
+        <thead>
+          <tr>
+            <th>항목</th>
+            <th rowspan="2" class="merged-net">도권망</th>
+            <th>강릉(상)<br>주/예</th>
+            <th>강릉(하)<br>주/예</th>
+            <th>원주(상)<br>주/예</th>
+            <th>원주(하)<br>주/예</th>
+          </tr>
+          <tr>
+            <th>상태</th>
+            <td><label class="check"><input type="checkbox" name="gang_upper"></label></td>
+            <td><label class="check"><input type="checkbox" name="gang_lower"></label></td>
+            <td><label class="check"><input type="checkbox" name="wonju_upper"></label></td>
+            <td><label class="check"><input type="checkbox" name="wonju_lower"></label></td>
+          </tr>
+        </thead>
+        </table>
+        </div>
+        </div>
+
+        <div class="card break-page" id="picCard">
+        <div class="card-title">PIC</div>
+        <div class="section">
+        <table>
+        <thead><tr><th>구분</th><th>PGM</th><th>R/S</th><th>NET</th><th>Bypass</th></tr></thead>
+        <tbody>
+        <tr><td>표준FM</td><td><label class="check"><input type="checkbox" name="pic_std_pgm"></label></td><td><label class="check"><input type="checkbox" name="pic_std_rs"></label></td><td><label class="check"><input type="checkbox" name="pic_std_net"></label></td><td><label class="check"><input type="checkbox" name="pic_std_bypass"></label></td></tr>
+        <tr><td>음악FM</td><td><label class="check"><input type="checkbox" name="pic_music_pgm"></label></td><td><label class="check"><input type="checkbox" name="pic_music_rs"></label></td><td><label class="check"><input type="checkbox" name="pic_music_net"></label></td><td><label class="check"><input type="checkbox" name="pic_music_bypass"></label></td></tr>
+        </tbody>
+        </table>
+        </div>
+        </div>
+
+        <div class="card">
+        <div class="card-title">STL</div>
+        <div class="section">
+        <table>
+        <thead><tr><th>매체</th><th>FWD PWR</th><th>REV PWR</th><th>VC01</th><th>VC02</th></tr></thead>
+        <tbody><tr><td>4CH 예비</td><td><input name="fwd_pwr"></td><td><input name="rev_pwr"></td><td><input name="vc01"></td><td><input name="vc02"></td></tr></tbody>
+        </table>
+        </div>
+        </div>
+
+        <div class="card">
+        <div class="card-title">AI AUTO PLAYER</div>
+        <div class="section">
+        <table>
+        <thead><tr><th>동작상태</th><th>AUTO PLAYER 주</th><th>AUTO PLAYER 예비</th></tr></thead>
+        <tbody><tr><td>상태</td><td><label class="check"><input type="checkbox" name="auto_main"></label></td><td><label class="check"><input type="checkbox" name="auto_backup"></label></td></tr></tbody>
+        </table>
+        </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">기기실 PDB</div>
+          <div class="section">
+            <table>
+              <thead><tr><th>전압(V)</th><th>전류(R)</th><th>전류(T)</th><th>위치</th><th>온도</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><input name="pdb_voltage"></td>
+                  <td><input name="pdb_current_r"></td>
+                  <td><input name="pdb_current_t"></td>
+                  <td><input name="pdb_position" list="pdbPositionList" autocomplete="off"></td>
+                  <td><input name="pdb_temp"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <datalist id="pdbPositionList"><option value="Radio"><option value="TV"></datalist>
+
+        <div class="card">
+        <div class="card-title">MCM 점검사항</div>
+        <div class="section">
+        <table>
+        <thead><tr><th>구분</th><th>동작상태</th><th>캐쉬상태</th></tr></thead>
+        <tbody>
+        <tr><td>표준FM</td><td><label class="check"><input type="checkbox" name="mcm_std_run"></label></td><td><label class="check"><input type="checkbox" name="mcm_std_cache"></label></td></tr>
+        <tr><td>음악FM</td><td><label class="check"><input type="checkbox" name="mcm_music_run"></label></td><td><label class="check"><input type="checkbox" name="mcm_music_cache"></label></td></tr>
+        </tbody>
+        </table>
+        </div>
+        </div>
+
+        <div class="card break-page">
+        <div class="card-title card-title-row"><span>기타 전달사항</span><button type="button" class="notice-trigger" id="radioNoticeBtn">공지</button></div>
+        <div class="section"><textarea name="other" placeholder="고장·조치사항·전달사항을 입력하세요"></textarea></div>
+        </div>
+        </form>
+
+        <div class="btnbar">
+          <button type="button" class="save" id="radioSaveBtn">저장</button>
+          <button type="button" class="print" id="radioPrintBtn">인쇄 / PDF</button>
+          <button type="button" class="clear" id="radioClearBtn">전체 지우기</button>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- =================== TAB 4: 업무보고 =================== -->
+  <div id="page-report" class="page hidden">
+    <div class="wr-import" id="wrRoot">
+      <header><h1 id="wrTitle">주간업무보고</h1><button type="button" class="wr-x" id="wrModeBtn">월간</button></header>
+      <div class="wrap">
+        <div class="date-nav-row">
+          <button type="button" class="dnbtn" id="wrPrev">‹</button>
+          <div class="date-display"><span id="wrWeekMain"></span><span class="wr-sub" id="wrWeekSub"></span></div>
+          <button type="button" class="dnbtn" id="wrNext">›</button>
+          <button type="button" class="todaybtn2" id="wrToday">이번 주</button>
+        </div>
+
+        <div class="wr-print-head">
+          <div><div class="ph-title" id="wrPrintTitle">주간업무보고</div><div class="ph-sub" id="wrPrintSub"></div></div>
+          <table class="sign" aria-label="결재란"><tr><th>팀 장</th><th>국 장</th></tr><tr><td></td><td></td></tr></table>
+        </div>
+
+        <div class="wr-tools">
+          <button type="button" class="logbtn" id="wrMakeLog">제작일지</button>
+          <button type="button" class="logbtn" id="wrRepairLog">보수(점검)일지</button>
+        </div>
+
+        <div id="wrBody">
+        <div class="card">
+          <div class="title"><span class="wr-tl">1. 계획사항<small id="wrPlanPeriod"></small></span><button type="button" class="notice-trigger" id="wrPlanImport" title="완료되지 않은 실시사항을 계획사항으로 불러옵니다">불러오기</button></div>
+          <div class="sec">
+            <table id="wrPlanTable">
+              <thead><tr><th class="w-no">No</th><th>업무내용</th><th class="w-date">예정일</th><th class="w-last">구분</th></tr></thead>
+              <tbody></tbody>
+            </table>
+            <div class="rowbtns"><button type="button" class="ghost" data-wradd="plan">+ 행 추가</button><button type="button" class="ghost" data-wrdel="plan">− 행 삭제</button></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="title"><span class="wr-tl">2. 실시사항<small id="wrDonePeriod"></small></span><button type="button" class="notice-trigger" id="wrDoneImport" title="이전 기간의 계획사항을 실시사항으로 복사합니다">불러오기</button></div>
+          <div class="sec">
+            <table id="wrDoneTable">
+              <thead><tr><th class="w-no">No</th><th>업무내용</th><th class="w-date">실시일</th><th class="w-last">진행상태</th></tr></thead>
+              <tbody></tbody>
+            </table>
+            <div class="rowbtns"><button type="button" class="ghost" data-wradd="done">+ 행 추가</button><button type="button" class="ghost" data-wrdel="done">− 행 삭제</button></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="title"><span>3. 전달사항</span><button type="button" class="notice-trigger" id="wrNoticeBtn">공지</button></div>
+          <div class="sec special"><textarea id="wrSpecial" placeholder="전달사항을 입력하세요"></textarea></div>
+        </div>
+        </div>
+
+        <div class="wr-foot" id="wrFoot"></div>
+        <div class="wr-stat" id="wrStatus" aria-live="polite"></div>
+        <div class="bottom">
+          <button type="button" class="save" id="wrSaveBtn">저장</button>
+          <button type="button" class="print" id="wrPrintBtn">인쇄 / PDF</button>
+          <button type="button" class="clear" id="wrClearBtn">전체 지우기</button>
+        </div>
+        <p class="wr-hint" id="wrHint">기준 주(월~일)는 계획사항, 바로 앞 주는 실시사항 기간으로 표시됩니다. 계획사항의 ‘불러오기’는 진행상태가 “완료”가 아닌 실시사항을 계획사항으로, 실시사항의 ‘불러오기’는 이전 기간의 계획사항을 실시사항으로 가져옵니다. “전체 지우기”는 저장 전까지 화면만 비우며, 저장된 내용은 “저장”을 눌러야 바뀝니다.</p>
+
+        <datalist id="wrPlanDates"></datalist>
+        <datalist id="wrDoneDates"></datalist>
+        <datalist id="wrCatList"><option value="방송제작/송출"><option value="연주소관리"><option value="송중계소관리"><option value="전파행정/기타"></datalist>
+        <datalist id="wrStatusList"><option value="완료"><option value="진행중"><option value="지연"><option value="미실시"><option value="이월"></datalist>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-tab="calendar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg>
+    <span>달력</span>
+  </button>
+  <button class="nav-btn" data-tab="tv">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><line x1="8" y1="22" x2="16" y2="22"/><line x1="12" y1="19" x2="12" y2="22"/><polyline points="8 3 12 6 16 3"/></svg>
+    <span>TV현업일지</span>
+  </button>
+  <button class="nav-btn" data-tab="radio">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="14" r="7"/><circle cx="12" cy="14" r="2.2"/><path d="M12 7 V3"/><path d="M8.5 5.5 6 3"/><path d="M15.5 5.5 18 3"/></svg>
+    <span>라디오현업일지</span>
+  </button>
+  <button class="nav-btn" data-tab="report">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+    <span>업무보고</span>
+  </button>
+</nav>
+
+<!-- 제작일지 / 보수(점검)일지 작성 창 -->
+<div class="wl-overlay" id="wlOverlay" role="dialog" aria-modal="true" aria-labelledby="wlTitle">
+  <div class="wr-import wl-panel">
+    <header><h1 id="wlTitle"></h1><button type="button" class="wr-x" id="wlClose">닫기</button></header>
+    <div class="wrap">
+      <div class="wr-print-head">
+        <div><div class="ph-title" id="wlPrintTitle"></div></div>
+        <table class="sign" aria-label="결재란"><tr><th>팀 장</th><th>국 장</th></tr><tr><td></td><td></td></tr></table>
+      </div>
+      <div class="date-nav-row" id="wlNav">
+        <button type="button" class="dnbtn" id="wlPrevLog" aria-label="이전 일지">‹</button>
+        <div class="date-display" id="wlNavLabel"></div>
+        <button type="button" class="dnbtn" id="wlNextLog" aria-label="다음 일지">›</button>
+      </div>
+      <div id="wlPaper"></div>
+      <div class="wr-stat" id="wlStatus" aria-live="polite"></div>
+      <div class="bottom">
+        <button type="button" class="save" id="wlSave">저장</button>
+        <button type="button" class="print" id="wlPrint">인쇄 / PDF</button>
+        <button type="button" class="clear" id="wlClose2">닫기</button>
+      </div>
+      <div id="wlLists"></div>
+    </div>
+  </div>
+</div>
+
+<div class="bk-overlay" id="bkOverlay" role="dialog" aria-modal="true" aria-labelledby="bkTitle">
+  <div class="bk-sheet">
+    <h2 id="bkTitle">데이터 백업</h2>
+    <p class="bk-sub">Firestore에 저장된 일지·업무보고를 JSON 파일로 내려받습니다.</p>
+    <label class="bk-opt">
+      <input type="radio" name="bkScope" value="month" checked>
+      <span><strong>월별 백업</strong><small>선택한 달의 TV·라디오 일지, 주간업무보고, 제작·보수일지 (기본)</small></span>
+    </label>
+    <div class="bk-month" id="bkMonthRow">
+      <button type="button" class="navbtn" id="bkPrev" aria-label="이전 달">‹</button>
+      <div class="bk-month-label" id="bkMonthLabel"></div>
+      <button type="button" class="navbtn" id="bkNext" aria-label="다음 달">›</button>
+    </div>
+    <label class="bk-opt">
+      <input type="radio" name="bkScope" value="range">
+      <span><strong>기간 지정 백업</strong><small>시작일부터 종료일까지 일지를 한 파일로 저장</small></span>
+    </label>
+    <div class="bk-range" id="bkRangeRow">
+      <label class="bk-range-field"><span>시작일</span><input type="date" id="bkFrom"></label>
+      <label class="bk-range-field"><span>종료일</span><input type="date" id="bkTo"></label>
+    </div>
+    <div class="bk-status" id="exportStatus" aria-live="polite"></div>
+    <div class="bk-actions">
+      <button type="button" class="bk-cancel" id="bkCancel">닫기</button>
+      <button type="button" class="bk-run" id="bkRun">백업 다운로드</button>
+    </div>
+  </div>
+</div>
+
+<div class="bk-overlay" id="ncOverlay" role="dialog" aria-modal="true" aria-labelledby="ncTitle">
+  <div class="bk-sheet">
+    <h2 id="ncTitle">공지 작성</h2>
+    <p class="bk-sub" id="ncSub"></p>
+    <div class="notice-dates" id="ncPick" style="display:none">
+      <label>공지 제목<input type="text" id="ncNoticeTitle" maxlength="40" placeholder="제목 입력" autocomplete="off"></label>
+      <label>공지 날짜<input type="date" id="ncNoticeDate"></label>
+    </div>
+    <div class="notice-dates">
+      <label>시작일<input type="date" id="ncFrom"></label>
+      <label>종료일<input type="date" id="ncTo"></label>
+    </div>
+    <textarea class="notice-msg" id="ncMsg" placeholder="공지 팝업에 표시할 내용을 입력하세요"></textarea>
+    <div class="bk-status" id="ncStatus" aria-live="polite"></div>
+    <div class="bk-actions">
+      <button type="button" class="bk-cancel" id="ncCancel">닫기</button>
+      <button type="button" class="bk-cancel bk-disable" id="ncDisable">공지 해제</button>
+      <button type="button" class="bk-run" id="ncSave">공지 저장</button>
+    </div>
+
+  </div>
+</div>
+
+<div class="bk-overlay" id="nlOverlay" role="dialog" aria-modal="true" aria-labelledby="nlTitle">
+  <div class="bk-sheet">
+    <h2 id="nlTitle">📢 공지사항</h2>
+    <p class="bk-sub">현재 게시 중인 공지입니다.</p>
+    <div class="nl-list" id="nlList"></div>
+    <div class="bk-actions">
+      <button type="button" class="bk-cancel" id="nlClose">닫기</button>
+      <button type="button" class="bk-run" id="nlWrite">공지 작성</button>
+    </div>
+  </div>
+</div>
+
+<div class="nt-overlay" id="ntOverlay" role="alertdialog" aria-modal="true" aria-labelledby="ntTitle">
+  <div class="nt-card">
+    <div class="nt-count" id="ntCount"></div>
+    <h3 id="ntTitle">📢 공지사항</h3>
+    <p class="nt-logdate" id="ntLogDate"></p>
+    <p class="nt-period" id="ntPeriod"></p>
+    <p class="nt-msg" id="ntMsg"></p>
+    <button type="button" class="nt-ok" id="ntOk">확인</button>
+  </div>
+</div>
+
+<script type="module">
+/* =========================================================
+   FIREBASE (Firestore) — 공유 클라우드 저장소
+   ========================================================= */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs,
+  query, where, documentId
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAZxNMz_RR0vyos7My8wYq6NLPiDk5smD8",
+  authDomain: "work-dairy-48ffb.firebaseapp.com",
+  projectId: "work-dairy-48ffb",
+  storageBucket: "work-dairy-48ffb.firebasestorage.app",
+  messagingSenderId: "744194512360",
+  appId: "1:744194512360:web:81c7177afc8013bd71005d",
+  measurementId: "G-TCJ5N8FEWW"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const auth = getAuth(fbApp);
+const TV_COLLECTION = 'tv_logs';
+const RADIO_COLLECTION = 'radio_logs';
+
+/* =========================================================
+   COMMON HELPERS
+   ========================================================= */
+const DOW = ['일','월','화','수','목','금','토'];
+const TAB_ORDER = ['calendar','tv','radio','report'];
+let selectedDate = null;
+
+function pad(n){ return String(n).padStart(2,'0'); }
+function fmtKey(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function todayKey(){ return fmtKey(new Date()); }
+function addDays(dateKey, delta){
+  const [y,m,d] = dateKey.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  dt.setDate(dt.getDate()+delta);
+  return fmtKey(dt);
+}
+function dateLabelOf(dateKey){
+  const [y,m,d] = dateKey.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  return { main: `${y}년 ${m}월 ${d}일`, sub: DOW[dt.getDay()]+'요일' };
+}
+function renderHeader(title){
+  return `<div class="app-header"><h1>${title}</h1><div class="underline"></div></div>`;
+}
+
+/* =========================================================
+   TAB SWITCHING (+ swipe gesture)
+   ========================================================= */
+function switchTab(tab){
+  document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
+  document.getElementById('page-'+tab).classList.remove('hidden');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.getAttribute('data-tab')===tab));
+  if(tab==='calendar') mainRenderCalendar();
+  else if(tab==='tv') tvOpenDetail(selectedDate);
+  else if(tab==='radio') radioOpenDetail(selectedDate);
+  else if(tab==='report') wrEnter();
+}
+document.querySelectorAll('.nav-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> switchTab(btn.getAttribute('data-tab')));
+});
+
+(function setupSwipe(){
+  let sx=0, sy=0, st=0, tracking=false;
+  document.addEventListener('touchstart', e=>{
+    if(e.target.closest('input, textarea, button, select, label, .bk-overlay, .nt-overlay, .wl-overlay')) { tracking=false; return; }
+    const t=e.touches[0]; sx=t.clientX; sy=t.clientY; st=Date.now(); tracking=true;
+  }, {passive:true});
+  document.addEventListener('touchend', e=>{
+    if(!tracking) return;
+    tracking=false;
+    const t=e.changedTouches[0];
+    const dx=t.clientX-sx, dy=t.clientY-sy, dt=Date.now()-st;
+    if(Math.abs(dx) > 65 && Math.abs(dy) < 60 && dt < 700){
+      const current = document.querySelector('.nav-btn.active').getAttribute('data-tab');
+      const idx = TAB_ORDER.indexOf(current);
+      if(dx < 0 && idx < TAB_ORDER.length-1) switchTab(TAB_ORDER[idx+1]);
+      else if(dx > 0 && idx > 0) switchTab(TAB_ORDER[idx-1]);
+    }
+  }, {passive:true});
+})();
+
+/* =========================================================
+   TAB 1: MAIN OVERVIEW CALENDAR
+   ========================================================= */
+const mainState = { cursor: new Date(), tvDates: new Set(), radioDates: new Set(), makeDates: new Set(), repairDates: new Set() };
+
+async function mainLoadMarkers(){
+  try{
+    const [tvSnap, rSnap] = await Promise.all([
+      getDocs(collection(db, TV_COLLECTION)),
+      getDocs(collection(db, RADIO_COLLECTION))
+    ]);
+    mainState.tvDates = new Set(tvSnap.docs.map(d=>d.id));
+    mainState.radioDates = new Set(rSnap.docs.map(d=>d.id));
+  }catch(e){ mainState.tvDates = new Set(); mainState.radioDates = new Set(); }
+  try{
+    const [mSnap, pSnap] = await Promise.all([
+      getDocs(collection(db, MAKELOG_COLLECTION)),
+      getDocs(collection(db, REPAIRLOG_COLLECTION))
+    ]);
+    mainState.makeDates = new Set(mSnap.docs.map(d=>d.id));
+    mainState.repairDates = new Set(pSnap.docs.map(d=>d.id));
+  }catch(e){ mainState.makeDates = new Set(); mainState.repairDates = new Set(); }
+}
+
+async function mainRenderCalendar(){
+  await mainLoadMarkers();
+  const el = document.getElementById('page-calendar');
+  const y = mainState.cursor.getFullYear(), m = mainState.cursor.getMonth();
+  const first = new Date(y, m, 1);
+  const startDow = first.getDay();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const tKey = todayKey();
+
+  let cells = '';
+  for(let i=0;i<startDow;i++) cells += `<div class="day-cell blank"></div>`;
+  for(let day=1; day<=daysInMonth; day++){
+    const d = new Date(y,m,day);
+    const key = fmtKey(d);
+    const dow = d.getDay();
+    const isWeekend = dow===0 || dow===6;
+    const classes = ['day-cell'];
+    if(key===tKey) classes.push('today');
+    if(key===selectedDate) classes.push('selected');
+    if(isWeekend) classes.push('weekend-tint');
+    const numClass = dow===0 ? 'sun' : (dow===6 ? 'sat' : '');
+    const hasTv = mainState.tvDates.has(key);
+    const hasRadio = mainState.radioDates.has(key);
+    const dots = (hasTv || hasRadio)
+      ? `<span class="dotrow">${hasTv?'<i style="background:var(--cyan)"></i>':''}${hasRadio?'<i style="background:var(--sun-red)"></i>':''}</span>`
+      : '';
+    const hasMk = mainState.makeDates.has(key);
+    const hasRp = mainState.repairDates.has(key);
+    // 업무보고 일지 점: 현업일지 점 바로 아래 줄 (제작일지 노랑 / 보수일지 보라)
+    const dots2 = (hasMk || hasRp)
+      ? `${dots ? '' : '<span class="dotrow"><i style="visibility:hidden"></i></span>'}<span class="dotrow" style="margin-top:3px">${hasMk?'<i style="background:#e0a100"></i>':''}${hasRp?'<i style="background:#7b4fb3"></i>':''}</span>`
+      : '';
+    cells += `<div class="${classes.join(' ')}" data-date="${key}">
+        <span class="num ${numClass}">${day}</span>
+        ${dots}${dots2}
+      </div>`;
+  }
+
+  el.innerHTML = `
+    ${renderHeader('기술국 현업일지')}
+    <div class="cal-nav">
+      <button class="navbtn" id="prevMonth">‹</button>
+      <div class="cal-month">${y}년 ${pad(m+1)}월</div>
+      <button class="navbtn" id="nextMonth">›</button>
+      <button class="todaybtn" id="todayBtn">오늘</button>
+      <button class="backupbtn" id="exportBtn">백업</button>
+      <button class="backupbtn noticebtn${noticeBtnClass()}" id="noticeListBtn">공지<span class="notice-badge" id="noticeBadge"${noticeBadgeCount>0 ? '' : ' style="display:none"'}>${noticeBadgeCount}</span></button>
+    </div>
+    <div class="cal-card">
+      <div class="dow-row">${DOW.map((d,i)=>`<div class="${i===0?'sun':(i===6?'sat':'')}">${d}</div>`).join('')}</div>
+      <div class="day-row">${cells}</div>
+    </div>
+    <div class="legend-row">
+      <div class="legend"><span><i style="background:var(--cyan)"></i>TV 일지</span><span><i style="background:var(--sun-red)"></i>라디오 일지</span><span><i style="background:#e0a100"></i>제작일지</span><span><i style="background:#7b4fb3"></i>보수일지</span></div>
+      <a class="viewer-link" href="local-viewer.html" aria-label="백업 뷰어 열기">
+      <span class="viewer-link-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="18" x2="12" y2="21"/></svg>
+      </span>
+      <span class="viewer-link-text">
+        <strong>백업 뷰어</strong>
+        <small>내려받은 백업 파일로 지난 기록 검색·인쇄</small>
+      </span>
+        <span class="viewer-link-arrow">›</span>
+      </a>
+    </div>
+  `;
+
+  document.getElementById('exportBtn').onclick = openBackupDialog;
+  document.getElementById('noticeListBtn').onclick = openNoticeList;
+
+  document.getElementById('prevMonth').onclick = ()=>{ mainState.cursor = new Date(y, m-1, 1); mainRenderCalendar(); };
+  document.getElementById('nextMonth').onclick = ()=>{ mainState.cursor = new Date(y, m+1, 1); mainRenderCalendar(); };
+  document.getElementById('todayBtn').onclick = ()=>{ mainState.cursor = new Date(); selectedDate = todayKey(); mainRenderCalendar(); };
+  el.querySelectorAll('.day-cell[data-date]').forEach(cell=>{
+    cell.addEventListener('click', ()=>{
+      selectedDate = cell.getAttribute('data-date');
+      mainRenderCalendar();
+    });
+  });
+}
+
+/* =========================================================
+   BACKUP — Firestore 데이터를 JSON 파일로 내려받기
+   월별(기본) / 기간 지정 선택
+   ========================================================= */
+const bk = { ym: null, busy: false };
+const bkEl = {
+  overlay: document.getElementById('bkOverlay'),
+  monthRow: document.getElementById('bkMonthRow'),
+  monthLabel: document.getElementById('bkMonthLabel'),
+  rangeRow: document.getElementById('bkRangeRow'),
+  from: document.getElementById('bkFrom'),
+  to: document.getElementById('bkTo'),
+  status: document.getElementById('exportStatus'),
+  run: document.getElementById('bkRun')
+};
+
+function ymOf(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}`; }
+function ymLabel(ym){ const [y,m] = ym.split('-'); return `${y}년 ${m}월`; }
+function bkScope(){ return document.querySelector('input[name="bkScope"]:checked').value; }
+function bkSetStatus(msg, isErr){
+  bkEl.status.textContent = msg || '';
+  bkEl.status.classList.toggle('err', !!isErr);
+}
+function bkRender(){
+  const scope = bkScope();
+  bkEl.monthLabel.textContent = ymLabel(bk.ym);
+  bkEl.monthRow.classList.toggle('hidden', scope!=='month');
+  bkEl.rangeRow.classList.toggle('show', scope==='range');
+  bkSetStatus('');
+}
+function bkShiftMonth(delta){
+  const [y,m] = bk.ym.split('-').map(Number);
+  bk.ym = ymOf(new Date(y, m-1+delta, 1));
+  bkRender();
+}
+function openBackupDialog(){
+  bk.ym = ymOf(mainState.cursor);   // 달력에 보이는 달을 기본값으로
+  document.querySelector('input[name="bkScope"][value="month"]').checked = true;
+  if(!bkEl.from.value) bkEl.from.value = `${bk.ym}-01`;
+  if(!bkEl.to.value) bkEl.to.value = todayKey();
+  bkRender();
+  bkEl.overlay.classList.add('open');
+}
+function closeBackupDialog(){ if(!bk.busy) bkEl.overlay.classList.remove('open'); }
+
+// from/to(YYYY-MM-DD)가 있으면 해당 구간만, 둘 다 없으면 해당 컬렉션 전체
+async function fetchLogs(colName, from, to){
+  const ref = collection(db, colName);
+  const snap = (from && to)
+    ? await getDocs(query(ref, where(documentId(), '>=', from), where(documentId(), '<=', to)))
+    : await getDocs(ref);
+  const out = {};
+  snap.forEach(d=>{ out[d.id] = d.data(); });
+  return out;
+}
+
+async function runBackup(){
+  if(bk.busy) return;
+  const scope = bkScope(); // 'month' | 'range'
+  let from, to, fileSuffix, emptyMsg;
+
+  if(scope==='month'){
+    from = `${bk.ym}-01`; to = `${bk.ym}-31`;
+    fileSuffix = bk.ym;
+    emptyMsg = `${ymLabel(bk.ym)}에 저장된 일지가 없습니다.`;
+  }else{
+    from = bkEl.from.value; to = bkEl.to.value;
+    if(!from || !to){ bkSetStatus('시작일과 종료일을 모두 선택해주세요.', true); return; }
+    if(from > to){ bkSetStatus('시작일이 종료일보다 늦을 수 없습니다.', true); return; }
+    fileSuffix = `${from}_~_${to}`;
+    emptyMsg = '선택한 기간에 저장된 일지가 없습니다.';
+  }
+
+  bk.busy = true;
+  bkEl.run.disabled = true;
+  bkSetStatus('데이터를 모으는 중...');
+  try{
+    const [tv_logs, radio_logs, weekly_reports, monthly_reports, make_logs, repair_logs] = await Promise.all([
+      fetchLogs(TV_COLLECTION, from, to),
+      fetchLogs(RADIO_COLLECTION, from, to),
+      fetchLogs(WEEKLY_COLLECTION, from, to),     // 문서 ID = 해당 주 월요일
+      fetchLogs(MONTHLY_COLLECTION, from, to),    // 문서 ID = 해당 월 1일
+      fetchLogs(MAKELOG_COLLECTION, from, to),
+      fetchLogs(REPAIRLOG_COLLECTION, from, to)
+    ]);
+    const tvN = Object.keys(tv_logs).length;
+    const rN = Object.keys(radio_logs).length;
+    const wN = Object.keys(weekly_reports).length;
+    const moN = Object.keys(monthly_reports).length;
+    const mN = Object.keys(make_logs).length;
+    const pN = Object.keys(repair_logs).length;
+    if(tvN + rN + wN + moN + mN + pN === 0){
+      bkSetStatus(emptyMsg);
+      return;
+    }
+    const payload = {
+      exported_at: new Date().toLocaleString('ko-KR'),
+      scope,
+      ...(scope==='month' ? { month: bk.ym } : { from, to }),
+      tv_logs,
+      radio_logs,
+      weekly_reports,
+      monthly_reports,
+      make_logs,
+      repair_logs
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `현업일지_백업_${fileSuffix}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    const doneMsg = `다운로드 완료 (TV ${tvN}건, 라디오 ${rN}건, 주간업무보고 ${wN}건, 월간업무보고 ${moN}건, 제작일지 ${mN}건, 보수일지 ${pN}건)`;
+    bkSetStatus(doneMsg);
+    alert(`백업이 저장되었습니다.\n${doneMsg}`);
+  }catch(e){
+    console.error('backup failed', e);
+    bkSetStatus('백업 생성에 실패했습니다. 다시 시도해주세요.', true);
+  }finally{
+    bk.busy = false;
+    bkEl.run.disabled = false;
+  }
+}
+
+document.querySelectorAll('input[name="bkScope"]').forEach(r=> r.addEventListener('change', bkRender));
+document.getElementById('bkPrev').addEventListener('click', ()=> bkShiftMonth(-1));
+document.getElementById('bkNext').addEventListener('click', ()=> bkShiftMonth(1));
+document.getElementById('bkCancel').addEventListener('click', closeBackupDialog);
+document.getElementById('bkRun').addEventListener('click', runBackup);
+bkEl.overlay.addEventListener('click', e=>{ if(e.target===bkEl.overlay) closeBackupDialog(); });
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Escape') return;
+  closeBackupDialog();
+  if(typeof closeNoticeEditor==='function') closeNoticeEditor();
+  if(typeof closeNoticeList==='function') closeNoticeList();
+});
+
+/* =========================================================
+   TAB 2: TV 현업일지  (form copied from uploaded file)
+   ========================================================= */
+async function tvLoadLog(dateKey){
+  try{ const snap = await getDoc(doc(db, TV_COLLECTION, dateKey)); return snap.exists() ? snap.data() : null; }
+  catch(e){ return null; }
+}
+async function tvSaveLog(dateKey, data){ await setDoc(doc(db, TV_COLLECTION, dateKey), data); }
+
+function tvPopulate(data){
+  const form = document.getElementById('tvForm');
+  [...form.elements].forEach(el=>{
+    if(!el.name) return;
+    if(el.type==='checkbox'){ el.checked = !!(data && data[el.name]); }
+    else { el.value = (data && data[el.name]!==undefined) ? data[el.name] : ''; }
+  });
+}
+function tvUpdateDateDisplay(){
+  const lbl = dateLabelOf(selectedDate);
+  document.getElementById('tvDateMain').textContent = lbl.main;
+  document.getElementById('tvDateDow').textContent = lbl.sub;
+}
+async function tvOpenDetail(dateKey){
+  selectedDate = dateKey;
+  tvUpdateDateDisplay();
+  tvUpdateClearAvailability();
+  const data = await tvLoadLog(dateKey);
+  tvPopulate(data);
+  document.getElementById('tvForm').classList.toggle('show-status', !!data);
+}
+function tvUpdateClearAvailability(){
+  const btn = document.getElementById('tvClearBtn');
+  const isPast = selectedDate < todayKey();
+  btn.disabled = isPast;
+  btn.style.opacity = isPast ? '0.4' : '';
+  btn.style.cursor = isPast ? 'not-allowed' : '';
+}
+async function tvSaveForm(){
+  const lbl = dateLabelOf(selectedDate);
+  if(!confirm(`${lbl.main} ${lbl.sub} TV 현업일지를 저장합니다.`)) return;
+  const form = document.getElementById('tvForm');
+  const data = {};
+  [...form.elements].forEach(el=>{ if(el.name) data[el.name] = el.type==='checkbox' ? el.checked : el.value; });
+  try{
+    await tvSaveLog(selectedDate, data);
+    form.classList.add('show-status');
+    alert('저장되었습니다.');
+  }catch(e){
+    alert('저장에 실패했습니다. 다시 시도해주세요.');
+  }
+}
+async function tvClearForm(){
+  if(selectedDate < todayKey()){ alert('오늘 이전 날짜의 일지는 지울 수 없습니다.'); return; }
+  if(!confirm('이 날짜의 입력 내용을 모두 지울까요?')) return;
+  try{ await deleteDoc(doc(db, TV_COLLECTION, selectedDate)); }catch(e){}
+  tvPopulate(null);
+  document.getElementById('tvForm').classList.remove('show-status');
+}
+document.getElementById('tvSaveBtn').addEventListener('click', tvSaveForm);
+document.getElementById('tvPrintBtn').addEventListener('click', ()=> window.print());
+document.getElementById('tvClearBtn').addEventListener('click', tvClearForm);
+document.getElementById('tvDayPrev').addEventListener('click', ()=>{ selectedDate = addDays(selectedDate,-1); tvOpenDetail(selectedDate); });
+document.getElementById('tvDayNext').addEventListener('click', ()=>{ selectedDate = addDays(selectedDate, 1); tvOpenDetail(selectedDate); });
+document.getElementById('tvTodayBtn').addEventListener('click', ()=>{ tvOpenDetail(todayKey()); });
+
+/* =========================================================
+   TAB 3: 라디오 현업일지  (form copied from uploaded file)
+   ========================================================= */
+async function radioLoadLog(dateKey){
+  try{ const snap = await getDoc(doc(db, RADIO_COLLECTION, dateKey)); return snap.exists() ? snap.data() : null; }
+  catch(e){ return null; }
+}
+async function radioSaveLog(dateKey, data){ await setDoc(doc(db, RADIO_COLLECTION, dateKey), data); }
+
+function radioPopulate(data){
+  const form = document.getElementById('radioForm');
+  [...form.elements].forEach(el=>{
+    if(!el.name) return;
+    if(el.type==='checkbox'){ el.checked = !!(data && data[el.name]); }
+    else { el.value = (data && data[el.name]!==undefined) ? data[el.name] : ''; }
+  });
+}
+function radioUpdateDateDisplay(){
+  const lbl = dateLabelOf(selectedDate);
+  document.getElementById('radioDateMain').textContent = lbl.main;
+  document.getElementById('radioDateDow').textContent = lbl.sub;
+}
+async function radioOpenDetail(dateKey){
+  selectedDate = dateKey;
+  radioUpdateDateDisplay();
+  radioUpdateClearAvailability();
+  const data = await radioLoadLog(dateKey);
+  radioPopulate(data);
+  document.getElementById('radioForm').classList.toggle('show-status', !!data);
+}
+function radioUpdateClearAvailability(){
+  const btn = document.getElementById('radioClearBtn');
+  const isPast = selectedDate < todayKey();
+  btn.disabled = isPast;
+  btn.style.opacity = isPast ? '0.4' : '';
+  btn.style.cursor = isPast ? 'not-allowed' : '';
+}
+async function radioSaveForm(){
+  const lbl = dateLabelOf(selectedDate);
+  if(!confirm(`${lbl.main} ${lbl.sub} RADIO 현업일지를 저장합니다.`)) return;
+  const form = document.getElementById('radioForm');
+  const data = {};
+  [...form.elements].forEach(el=>{ if(el.name) data[el.name] = el.type==='checkbox' ? el.checked : el.value; });
+  try{
+    await radioSaveLog(selectedDate, data);
+    form.classList.add('show-status');
+    alert('저장되었습니다.');
+  }catch(e){
+    alert('저장에 실패했습니다. 다시 시도해주세요.');
+  }
+}
+async function radioClearForm(){
+  if(selectedDate < todayKey()){ alert('오늘 이전 날짜의 일지는 지울 수 없습니다.'); return; }
+  if(!confirm('이 날짜의 입력 내용을 모두 지울까요?')) return;
+  try{ await deleteDoc(doc(db, RADIO_COLLECTION, selectedDate)); }catch(e){}
+  radioPopulate(null);
+  document.getElementById('radioForm').classList.remove('show-status');
+}
+document.getElementById('radioSaveBtn').addEventListener('click', radioSaveForm);
+document.getElementById('radioPrintBtn').addEventListener('click', ()=> window.print());
+document.getElementById('radioClearBtn').addEventListener('click', radioClearForm);
+document.getElementById('radioDayPrev').addEventListener('click', ()=>{ selectedDate = addDays(selectedDate,-1); radioOpenDetail(selectedDate); });
+document.getElementById('radioDayNext').addEventListener('click', ()=>{ selectedDate = addDays(selectedDate, 1); radioOpenDetail(selectedDate); });
+document.getElementById('radioTodayBtn').addEventListener('click', ()=>{ radioOpenDetail(todayKey()); });
+
+/* =========================================================
+   일지 카드의 "공지" 버튼 → 공지 작성 창 (TV/라디오 공용)
+   - 전체 일지 저장(tvSaveForm/radioSaveForm)과는 완전히 별도로 동작
+   - 이 창의 "공지 저장" 버튼을 눌러야만 Firestore notices 컬렉션에 반영됨
+   - 문서 ID는 "tv-YYYY-MM-DD" / "radio-YYYY-MM-DD" 로 날짜별 1건 고정
+   ========================================================= */
+function logNoticeId(kind, dateKey){ return `${kind}-${dateKey}`; }
+// 공지가 달린 곳의 이름/표시 문구 (tv · radio · weekly=주간업무보고, 날짜는 해당 주 월요일)
+function noticeKindLabel(k){ return k==='tv' ? 'TV 현업일지' : (k==='radio' ? '라디오 현업일지' : (k==='monthly' ? '월간업무보고' : '주간업무보고')); }
+function noticeLogLine(k, dateKey){
+  if(k === 'monthly'){
+    const [y,m] = dateKey.split('-').map(Number);
+    return `월간업무보고 · ${y}년 ${m}월`;
+  }
+  if(k === 'weekly'){
+    const [y,m,d] = dateKey.split('-').map(Number);
+    return `주간업무보고 · ${wrWeekLabel(new Date(y, m-1, d))}`;
+  }
+  const l = dateLabelOf(dateKey);
+  return `${noticeKindLabel(k)} · ${l.main} ${l.sub}`;
+}
+
+let ncCtx = { kind: null, dateKey: null };
+const ncEl = {
+  overlay: document.getElementById('ncOverlay'),
+  sub: document.getElementById('ncSub'),
+  from: document.getElementById('ncFrom'),
+  to: document.getElementById('ncTo'),
+  msg: document.getElementById('ncMsg'),
+  status: document.getElementById('ncStatus'),
+  save: document.getElementById('ncSave'),
+  disable: document.getElementById('ncDisable'),
+  cancel: document.getElementById('ncCancel'),
+  pick: document.getElementById('ncPick'),
+  title: document.getElementById('ncNoticeTitle'),
+  noticeDate: document.getElementById('ncNoticeDate')
+};
+
+function ncSetStatus(msg, isErr){
+  ncEl.status.textContent = msg || '';
+  ncEl.status.classList.toggle('err', !!isErr);
+}
+
+// TV/라디오 일지의 "공지" 버튼으로 여는 경우 (일지 날짜 1건당 공지 1건)
+async function loadNoticeEditor(kind, dateKey){
+  ncCtx = { kind, dateKey, isNew: true, fromList: false };
+  ncEl.sub.textContent = (kind==='weekly'||kind==='monthly') ? noticeLogLine(kind, dateKey) : `${noticeKindLabel(kind)} · ${dateKey}`;
+  ncSetStatus('');
+  let data = null;
+  try{
+    const snap = await getDoc(doc(db, NOTICE_COLLECTION, logNoticeId(kind, dateKey)));
+    if(snap.exists()) data = snap.data();
+  }catch(e){}
+  if(data){
+    ncCtx.isNew = false; // 기존 문서가 있으면 수정 모드 — repeat 등 다른 필드를 건드리지 않음
+    ncEl.from.value = data.startDate || dateKey;
+    ncEl.to.value = data.endDate || dateKey;
+    ncEl.msg.value = data.message || '';
+    ncEl.title.value = data.title || '';
+    ncEl.noticeDate.value = data.noticeDate || ((kind==='weekly'||kind==='monthly') ? todayKey() : dateKey);
+    ncEl.disable.style.display = data.enabled ? '' : 'none';
+  }else{
+    ncEl.from.value = dateKey;
+    ncEl.title.value = '';
+    ncEl.noticeDate.value = (kind==='weekly'||kind==='monthly') ? todayKey() : dateKey;
+    const endD = new Date(dateKey);
+    endD.setDate(endD.getDate() + 7);
+    ncEl.to.value = `${endD.getFullYear()}-${pad(endD.getMonth()+1)}-${pad(endD.getDate())}`;
+    const formSel = kind==='tv' ? '#tvForm [name="memo"]' : (kind==='radio' ? '#radioForm [name="other"]' : '#wrSpecial');
+    const memoField = document.querySelector(formSel);
+    ncEl.msg.value = (memoField && memoField.value) || '';
+    ncEl.disable.style.display = 'none';
+  }
+}
+async function openNoticeEditor(kind, dateKey){
+  ncEl.pick.style.display = '';
+  await loadNoticeEditor(kind, dateKey);
+  ncEl.overlay.classList.add('open');
+}
+
+// 달력 옆 "공지" 목록의 "공지 작성" 버튼 — 일지와 무관한 별도 포맷(제목 + 공지 날짜 + 내용)
+function openNoticeEditorFromList(){
+  closeNoticeList();
+  const today = todayKey();
+  ncCtx = { kind: 'cal', dateKey: null, isNew: true, fromList: true };
+  ncEl.sub.textContent = '달력 공지를 작성합니다. 제목, 공지 날짜, 게시 기간, 내용을 입력하세요.';
+  ncSetStatus('');
+  ncEl.pick.style.display = '';
+  ncEl.title.value = '';
+  ncEl.noticeDate.value = today;
+  ncEl.from.value = today;
+  ncEl.to.value = addDays(today, 7);
+  ncEl.msg.value = '';
+  ncEl.disable.style.display = 'none';
+  ncEl.overlay.classList.add('open');
+}
+
+// 공지 목록의 "수정" 버튼 — 해당 공지를 작성 창에 불러옴
+function openNoticeEditorForEdit(item){
+  closeNoticeList();
+  const isLog = !!item.logKind;
+  const today = todayKey();
+  ncCtx = { kind: isLog ? item.logKind : 'cal', dateKey: isLog ? item.logDate : null, docId: item.id, isNew: false, fromList: true };
+  ncSetStatus('');
+  if(isLog){
+    ncEl.pick.style.display = '';
+    ncEl.title.value = item.title || '';
+    ncEl.noticeDate.value = item.noticeDate || item.logDate || today;
+    ncEl.sub.textContent = `${noticeLogLine(item.logKind, item.logDate)} 공지를 수정합니다.`;
+  }else{
+    ncEl.pick.style.display = '';
+    ncEl.title.value = item.title || '';
+    ncEl.noticeDate.value = item.noticeDate || today;
+    ncEl.sub.textContent = '달력 공지를 수정합니다.';
+  }
+  ncEl.from.value = item.startDate || today;
+  ncEl.to.value = item.endDate || addDays(today, 7);
+  ncEl.msg.value = item.message || '';
+  ncEl.disable.style.display = '';
+  ncEl.overlay.classList.add('open');
+}
+
+// back=true 이고 목록에서 연 창이면 닫은 뒤 공지 목록으로 돌아감
+function closeNoticeEditor(back){
+  ncEl.overlay.classList.remove('open');
+  if(back === true && ncCtx.fromList) openNoticeList();
+}
+
+async function saveNoticeEditor(){
+  const isCal = ncCtx.kind === 'cal';
+  const from = ncEl.from.value;
+  const to = ncEl.to.value;
+  const message = (ncEl.msg.value || '').trim();
+  const title = (ncEl.title.value || '').trim();          // 일지 공지는 제목을 비워 둘 수 있음
+  const noticeDate = ncEl.noticeDate.value;
+  if(isCal && !title){ ncSetStatus('공지 제목을 입력해주세요.', true); return; }
+  if(!noticeDate){ ncSetStatus('공지 날짜를 선택해주세요.', true); return; }
+  if(!from || !to){ ncSetStatus('시작일과 종료일을 입력해주세요.', true); return; }
+  if(from > to){ ncSetStatus('시작일이 종료일보다 늦을 수 없습니다.', true); return; }
+  if(!message){ ncSetStatus('공지 내용을 입력해주세요.', true); return; }
+
+  ncEl.save.disabled = true;
+  ncSetStatus('저장 중...');
+  try{
+    const payload = {
+      enabled: true,
+      startDate: from,
+      endDate: to,
+      message,
+      updatedAt: String(Date.now())
+    };
+    let docId;
+    if(isCal){
+      // 달력 공지: 새로 쓰면 문서 ID = cal-시각 (건수 제한 없음), 수정이면 기존 문서에 덮어씀
+      Object.assign(payload, { kind: 'cal', title, noticeDate });
+      if(ncCtx.isNew) payload.repeat = 1;
+      docId = ncCtx.docId || `cal-${Date.now()}`;
+    }else{
+      // 일지 공지: 새로 만드는 경우에만 repeat 기본값(1) — 수정 시에는 관리자가 넣어둔 repeat 값을 보존(merge)
+      if(ncCtx.isNew) payload.repeat = 1;
+      Object.assign(payload, { title, noticeDate });
+      docId = ncCtx.docId || logNoticeId(ncCtx.kind, ncCtx.dateKey);
+    }
+    await setDoc(doc(db, NOTICE_COLLECTION, docId), payload, { merge: true });
+    alert('공지가 저장되었습니다.');
+    closeNoticeEditor(true);
+    refreshNoticeBadge();
+  }catch(e){
+    ncSetStatus('저장에 실패했습니다. 다시 시도해주세요.', true);
+  }finally{
+    ncEl.save.disabled = false;
+  }
+}
+
+async function disableNoticeEditor(){
+  const { kind, dateKey } = ncCtx;
+  if(!confirm('이 공지를 그만 올릴까요?')) return;
+  try{
+    await setDoc(doc(db, NOTICE_COLLECTION, ncCtx.docId || logNoticeId(kind, dateKey)), { enabled:false, updatedAt: String(Date.now()) }, { merge:true });
+    alert('공지를 내렸습니다.');
+    closeNoticeEditor(true);
+    refreshNoticeBadge();
+  }catch(e){
+    ncSetStatus('처리에 실패했습니다. 다시 시도해주세요.', true);
+  }
+}
+
+document.getElementById('tvNoticeBtn').addEventListener('click', ()=> openNoticeEditor('tv', selectedDate));
+document.getElementById('radioNoticeBtn').addEventListener('click', ()=> openNoticeEditor('radio', selectedDate));
+ncEl.cancel.addEventListener('click', ()=> closeNoticeEditor(true));
+ncEl.save.addEventListener('click', saveNoticeEditor);
+ncEl.disable.addEventListener('click', disableNoticeEditor);
+ncEl.overlay.addEventListener('click', e=>{ if(e.target===ncEl.overlay) closeNoticeEditor(true); });
+
+/* =========================================================
+   공지사항 팝업
+   - Firestore의 notices 컬렉션에서 기간이 유효하고 enabled=true 인
+     공지를 불러와 순서대로 팝업으로 보여줍니다.
+   - 확인한 공지는 localStorage에 기록해 다음 방문 때 다시 뜨지 않습니다.
+     (공지 내용을 수정하면서 updatedAt 값을 바꾸면 "새 공지"로 다시 뜸)
+   ========================================================= */
+const NOTICE_COLLECTION = 'notices';
+const NOTICE_SEEN_KEY = 'noticeSeenKeys';
+let noticeQueue = [];
+const ntEl = {
+  overlay: document.getElementById('ntOverlay'),
+  count: document.getElementById('ntCount'),
+  title: document.getElementById('ntTitle'),
+  logDate: document.getElementById('ntLogDate'),
+  period: document.getElementById('ntPeriod'),
+  msg: document.getElementById('ntMsg'),
+  ok: document.getElementById('ntOk')
+};
+
+function noticeGetSeen(){
+  try{ return new Set(JSON.parse(localStorage.getItem(NOTICE_SEEN_KEY) || '[]')); }
+  catch(e){ return new Set(); }
+}
+function noticeMarkSeen(seenKey){
+  const seen = noticeGetSeen();
+  seen.add(seenKey);
+  try{ localStorage.setItem(NOTICE_SEEN_KEY, JSON.stringify([...seen])); }catch(e){}
+}
+
+// Firestore 문서의 repeat 필드로 노출 횟수를 조정할 때 쓰는 카운터 저장소
+// (repeat 필드가 없으면 기존처럼 "한 번 확인하면 끝" 방식 그대로 동작)
+const NOTICE_COUNT_KEY = 'noticeShowCounts';
+function noticeGetCounts(){
+  try{ return JSON.parse(localStorage.getItem(NOTICE_COUNT_KEY) || '{}'); }
+  catch(e){ return {}; }
+}
+function noticeIncrCount(countKey){
+  const counts = noticeGetCounts();
+  counts[countKey] = (counts[countKey] || 0) + 1;
+  try{ localStorage.setItem(NOTICE_COUNT_KEY, JSON.stringify(counts)); }catch(e){}
+}
+
+async function loadActiveNotices(){
+  try{
+    const snap = await getDocs(collection(db, NOTICE_COLLECTION));
+    const today = todayKey();
+    const seen = noticeGetSeen();
+    const counts = noticeGetCounts();
+    const active = [];
+    const expiredRefs = [];
+    snap.forEach(d=>{
+      const n = d.data();
+      // 기간이 지났는데 아직 켜져 있는 공지는 자동으로 꺼줌 (다음 조회부터 모두에게 적용됨)
+      if(n.enabled && n.endDate && today > n.endDate){
+        expiredRefs.push(d.ref);
+        return;
+      }
+      if(!n.enabled) return;
+      if(n.startDate && today < n.startDate) return;
+
+      // repeat 필드로 노출 방식 결정
+      //  - 없음(기본값) : 한 번 확인하면 끝 (기존 방식)
+      //  - "daily"      : 기간 중 매일 한 번씩 다시 뜸
+      //  - "always"     : 기간 중 앱을 열 때마다 항상 뜸
+      //  - 숫자(예: 3)  : 기기당 그 횟수만큼만 뜸
+      const repeatRaw = n.repeat;
+      const repeatNum = Number(repeatRaw);
+      const item = { message: n.message || '', startDate: n.startDate, endDate: n.endDate };
+      // 문서 ID("tv-YYYY-MM-DD" / "radio-YYYY-MM-DD")에서 공지를 작성한 일지의 종류·날짜를 추출
+      const idMatch = /^(tv|radio|weekly|monthly)-(\d{4}-\d{2}-\d{2})$/.exec(d.id);
+      if(idMatch){ item.logKind = idMatch[1]; item.logDate = idMatch[2]; }
+      item.title = n.title || ''; item.noticeDate = n.noticeDate || '';
+
+      if(repeatRaw === 'always'){
+        // 기록 없이 항상 노출
+      }else if(repeatRaw === 'daily'){
+        const seenKey = `${d.id}:${n.updatedAt || ''}:${today}`;
+        if(seen.has(seenKey)) return;
+        item.seenKey = seenKey;
+      }else if(!isNaN(repeatNum) && repeatNum > 0){
+        const countKey = `${d.id}:${n.updatedAt || ''}`;
+        if((counts[countKey] || 0) >= repeatNum) return;
+        item.countKey = countKey;
+      }else{
+        const seenKey = `${d.id}:${n.updatedAt || ''}`;
+        if(seen.has(seenKey)) return;
+        item.seenKey = seenKey;
+      }
+
+      active.push(item);
+    });
+    if(expiredRefs.length){
+      Promise.all(expiredRefs.map(ref=> setDoc(ref, { enabled:false }, { merge:true }).catch(()=>{}) ));
+    }
+    active.sort((a,b)=> (a.startDate||'').localeCompare(b.startDate||''));
+    return active;
+  }catch(e){
+    console.error('notice load failed', e);
+    return [];
+  }
+}
+
+function showNextNotice(){
+  if(noticeQueue.length === 0){ ntEl.overlay.classList.remove('open'); return; }
+  const n = noticeQueue[0];
+  ntEl.count.textContent = noticeQueue.length > 1 ? `공지 ${noticeQueue.length}건 중 1건` : '';
+  const isLogN = !!n.logKind;
+  if(isLogN){
+    // 일지 공지: 제목(없으면 '공지사항') + 어느 일지에서 쓴 공지인지
+    ntEl.title.textContent = n.title ? `📢 ${n.title}` : '📢 공지사항';
+    ntEl.logDate.textContent = n.logDate ? noticeLogLine(n.logKind, n.logDate) : '';
+  }else if(n.title){
+    // 달력 공지: 제목 + 공지 날짜
+    ntEl.title.textContent = `📢 ${n.title}`;
+    if(n.noticeDate){
+      const lbl = dateLabelOf(n.noticeDate);
+      ntEl.logDate.textContent = `공지 날짜 · ${lbl.main} ${lbl.sub}`;
+    }else{
+      ntEl.logDate.textContent = '';
+    }
+  }else{
+    ntEl.title.textContent = '📢 공지사항';
+    ntEl.logDate.textContent = '';
+  }
+  {
+    const dk = n.noticeDate || n.logDate;
+    const isToday = !!dk && dk === todayKey();
+    if(isToday && ntEl.logDate.textContent) ntEl.logDate.textContent += ' (오늘)';
+    ntEl.logDate.classList.toggle('today', isToday);
+  }
+  {
+    const nd = (isLogN && n.noticeDate) ? (() => { const l = dateLabelOf(n.noticeDate); return `공지 날짜: ${l.main} ${l.sub}`; })() : '';
+    const per = (n.startDate && n.endDate) ? `공지 기간: ${n.startDate} ~ ${n.endDate}` : '';
+    ntEl.period.textContent = [nd, per].filter(Boolean).join(' · ');
+  }
+  ntEl.msg.textContent = n.message;
+  ntEl.overlay.classList.add('open');
+}
+
+ntEl.ok.addEventListener('click', ()=>{
+  const n = noticeQueue.shift();
+  if(n){
+    if(n.seenKey) noticeMarkSeen(n.seenKey);
+    if(n.countKey) noticeIncrCount(n.countKey);
+  }
+  showNextNotice();
+  refreshNoticeBadge();
+});
+
+async function checkNotices(){
+  noticeQueue = await loadActiveNotices();
+  showNextNotice();
+}
+
+/* =========================================================
+   공지 목록 (달력 상단 "공지" 버튼)
+   - 팝업에서 이미 확인한 공지도 여기서 다시 볼 수 있음
+   - 기간이 유효하고 enabled=true 인 공지만 표시
+   - 목록을 열어 보는 것은 "확인" 기록(localStorage)에 영향을 주지 않음
+   - 배지 숫자 = 아직 팝업으로 확인하지 않은 공지 수
+   ========================================================= */
+let noticeListCache = [];
+let noticeBadgeCount = 0;
+
+// 팝업이 다시 뜰 조건(repeat 규칙)과 같은 기준으로 "안 읽음" 판단
+function noticeUnreadOf(docId, n, seen, counts, today){
+  const r = n.repeat;
+  const num = Number(r);
+  if(r === 'always') return false;   // 항상 뜨는 공지는 배지에 세지 않음
+  if(r === 'daily') return !seen.has(`${docId}:${n.updatedAt || ''}:${today}`);
+  if(!isNaN(num) && num > 0) return (counts[`${docId}:${n.updatedAt || ''}`] || 0) < num;
+  return !seen.has(`${docId}:${n.updatedAt || ''}`);
+}
+
+async function loadNoticeList(){
+  const snap = await getDocs(collection(db, NOTICE_COLLECTION));
+  const today = todayKey();
+  const seen = noticeGetSeen();
+  const counts = noticeGetCounts();
+  const list = [];
+  snap.forEach(d=>{
+    const n = d.data();
+    if(!n.enabled) return;
+    if(n.endDate && today > n.endDate) return;
+    if(n.startDate && today < n.startDate) return;
+    const m = /^(tv|radio|weekly|monthly)-(\d{4}-\d{2}-\d{2})$/.exec(d.id);
+    list.push({
+      id: d.id,
+      message: n.message || '',
+      startDate: n.startDate,
+      endDate: n.endDate,
+      logKind: m ? m[1] : null,
+      logDate: m ? m[2] : null,
+      title: n.title || '',
+      noticeDate: n.noticeDate || '',
+      unread: noticeUnreadOf(d.id, n, seen, counts, today)
+    });
+  });
+  list.sort((a,b)=> (b.startDate||'').localeCompare(a.startDate||''));
+  return list;
+}
+
+// 공지 버튼 색 상태: 오늘 날짜 공지 있음 → ' notice-today', 다른 날짜 공지만 있음 → ' notice-any', 없음 → ''
+function noticeBtnClass(){
+  if(!noticeListCache.length) return '';
+  const today = todayKey();
+  const hasToday = noticeListCache.some(n => (n.noticeDate || n.logDate || '') === today);
+  return hasToday ? ' notice-today' : ' notice-any';
+}
+function paintNoticeBadge(){
+  const btn = document.getElementById('noticeListBtn');
+  if(btn){
+    btn.classList.remove('notice-today', 'notice-any');
+    const c = noticeBtnClass().trim();
+    if(c) btn.classList.add(c);
+  }
+  const b = document.getElementById('noticeBadge');
+  if(!b) return;
+  b.textContent = String(noticeBadgeCount);
+  b.style.display = noticeBadgeCount > 0 ? '' : 'none';
+}
+async function refreshNoticeBadge(){
+  try{ noticeListCache = await loadNoticeList(); }
+  catch(e){ console.error('notice list load failed', e); return false; }
+  noticeBadgeCount = noticeListCache.length;   // 게시 중인 공지 전체 개수
+  paintNoticeBadge();
+  return true;
+}
+
+/* =========================================================
+   카카오톡 공유
+   - 카카오톡은 대화방에 자동으로 글을 올리는 공식 방법이 없어서,
+     휴대폰의 "공유" 창으로 카카오톡을 열고 대화방을 직접 골라 전송하는 방식입니다.
+   - PC 등 공유 창을 쓸 수 없는 기기에서는 글을 복사해 줍니다.
+   - 공지 목록의 카드에서만 사용합니다. (작성 창에는 없음)
+   ========================================================= */
+// (선택) 공지를 올릴 카카오톡 오픈채팅방 링크. 넣어 두면 공유 창이 없는 기기에서
+// 글을 복사한 뒤 이 오픈채팅방을 바로 열어 줍니다. 예: 'https://open.kakao.com/o/xxxxxxx'
+const KAKAO_OPENCHAT_URL = '';
+
+function buildNoticeShareText({ title, dateLine, from, to, message }){
+  const parts = [`📢 ${title}`];
+  if(dateLine) parts.push(dateLine);
+  parts.push('', message);
+  return parts.join('\n');
+}
+function noticeShareTextOfItem(n){
+  let title = '공지사항', dateLine = '';
+  const nd = n.noticeDate ? (() => { const l = dateLabelOf(n.noticeDate); return `공지 날짜: ${l.main} ${l.sub}`; })() : '';
+  if(n.logKind){
+    title = n.title || `${noticeKindLabel(n.logKind)} 공지`;
+    dateLine = [n.logDate ? noticeLogLine(n.logKind, n.logDate) : '', nd].filter(Boolean).join('\n');
+  }else if(n.title){
+    title = n.title;
+    dateLine = nd;
+  }
+  return buildNoticeShareText({ title, dateLine, from: n.startDate, to: n.endDate, message: n.message });
+}
+async function copyNoticeText(text){
+  try{
+    if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(text); return true; }
+  }catch(e){}
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  }catch(e){ return false; }
+}
+async function shareNotice(text){
+  if(!text) return;
+  // 휴대폰/태블릿에서만 공유 창 사용 (PC의 공유 창에는 카카오톡이 나오지 않으므로 바로 복사)
+  const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent)
+    || (/macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  if(isMobile && navigator.share){
+    try{ await navigator.share({ text }); return; }
+    catch(e){ if(e && e.name === 'AbortError') return; /* 그 외 실패는 복사로 대체 */ }
+  }
+  const ok = await copyNoticeText(text);
+  if(!ok){ alert('공유할 수 없습니다. 아래 내용을 직접 복사해 주세요.\n\n' + text); return; }
+  if(KAKAO_OPENCHAT_URL){
+    alert('공지 내용이 복사되었습니다.\n확인을 누르면 카카오톡 오픈채팅방이 열립니다. 붙여넣기 해서 전송해 주세요.');
+    window.open(KAKAO_OPENCHAT_URL, '_blank');
+  }else{
+    alert('공지 내용이 복사되었습니다.\n카카오톡 대화방에 붙여넣기 해서 전송해 주세요.');
+  }
+}
+const nlEl = {
+  overlay: document.getElementById('nlOverlay'),
+  list: document.getElementById('nlList'),
+  close: document.getElementById('nlClose'),
+  write: document.getElementById('nlWrite')
+};
+function closeNoticeList(){ nlEl.overlay.classList.remove('open'); }
+
+function renderNoticeList(){
+  nlEl.list.replaceChildren();
+  if(noticeListCache.length === 0){
+    const p = document.createElement('p');
+    p.className = 'nl-empty';
+    p.textContent = '현재 게시 중인 공지가 없습니다.';
+    nlEl.list.appendChild(p);
+    return;
+  }
+  const today = todayKey();
+  const dateOf = n => n.noticeDate || n.logDate || '';
+  const sorted = noticeListCache.slice().sort((a,b)=>{
+    const ta = dateOf(a) === today ? 0 : 1, tb = dateOf(b) === today ? 0 : 1;
+    return ta - tb;   // 같은 그룹 안에서는 기존 순서(시작일 최신순) 유지
+  });
+  sorted.forEach(n=>{
+    const isToday = dateOf(n) === today;
+    const compact = !n.logKind || n.logKind === 'weekly' || n.logKind === 'monthly';   // 주간업무보고·달력 공지: 날짜를 제목 옆에, 공지날짜 행 없음
+    const card = document.createElement('div');
+    card.className = 'nl-card ' + (n.unread ? 'unread' : 'read') + (isToday ? ' today' : '');
+
+    const head = document.createElement('div');
+    head.className = 'nl-head';
+    const log = document.createElement('span');
+    log.className = 'nl-log';
+    if(n.title){
+      log.textContent = n.title;
+    }else if(n.logDate){
+      log.textContent = noticeLogLine(n.logKind, n.logDate);
+    }else{
+      log.textContent = '공지사항';
+    }
+    head.appendChild(log);
+    if(compact && n.noticeDate){
+      const dt = document.createElement('span');
+      dt.className = 'nl-date';
+      const lb = dateLabelOf(n.noticeDate);
+      dt.textContent = `${lb.main}(${lb.sub.charAt(0)})`;
+      head.appendChild(dt);
+    }
+    if(isToday){
+      const t = document.createElement('span');
+      t.className = 'nl-today';
+      t.textContent = '오늘';
+      head.appendChild(t);
+    }
+    if(n.unread){
+      const tag = document.createElement('span');
+      tag.className = 'nl-new';
+      tag.textContent = 'NEW';
+      head.appendChild(tag);
+    }
+    card.appendChild(head);
+
+    if(n.title && n.logDate){
+      const ll = document.createElement('p');
+      ll.className = 'nl-period';
+      ll.style.marginBottom = '2px';
+      ll.textContent = noticeLogLine(n.logKind, n.logDate);
+      card.appendChild(ll);
+    }
+    if(n.noticeDate && !compact){
+      const nd = document.createElement('p');
+      nd.className = 'nl-period';
+      nd.style.marginBottom = '2px';
+      const lbl = dateLabelOf(n.noticeDate);
+      nd.textContent = `공지 날짜: ${lbl.main} ${lbl.sub}`;
+      card.appendChild(nd);
+    }
+    if(n.startDate && n.endDate){
+      const per = document.createElement('p');
+      per.className = 'nl-period';
+      per.textContent = `공지 기간: ${n.startDate} ~ ${n.endDate}`;
+      card.appendChild(per);
+    }
+    const msg = document.createElement('p');
+    msg.className = 'nl-msg';
+    msg.textContent = n.message;
+    card.appendChild(msg);
+
+    const actions = document.createElement('div');
+    actions.className = 'nl-actions';
+    const share = document.createElement('button');
+    share.type = 'button';
+    share.className = 'nl-share';
+    share.textContent = '카톡 공유';
+    share.addEventListener('click', ()=> shareNotice(noticeShareTextOfItem(n)));
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'nl-edit';
+    edit.textContent = '수정';
+    edit.addEventListener('click', ()=> openNoticeEditorForEdit(n));
+    actions.appendChild(share);
+    actions.appendChild(edit);
+    card.appendChild(actions);
+
+    nlEl.list.appendChild(card);
+  });
+}
+
+async function openNoticeList(){
+  nlEl.list.replaceChildren();
+  const loading = document.createElement('p');
+  loading.className = 'nl-empty';
+  loading.textContent = '불러오는 중...';
+  nlEl.list.appendChild(loading);
+  nlEl.overlay.classList.add('open');
+  const ok = await refreshNoticeBadge();
+  if(!nlEl.overlay.classList.contains('open')) return;   // 불러오는 사이 닫은 경우
+  if(!ok){ loading.textContent = '공지를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.'; return; }
+  renderNoticeList();
+}
+nlEl.close.addEventListener('click', closeNoticeList);
+nlEl.write.addEventListener('click', ()=> openNoticeEditorFromList());
+nlEl.overlay.addEventListener('click', e=>{ if(e.target===nlEl.overlay) closeNoticeList(); });
+
+/* =========================================================
+   TAB 4: 업무보고 — 기술국 주간업무보고 / 제작일지 / 보수(점검)일지
+   Firestore 컬렉션
+     weekly_reports/{해당 주 월요일 YYYY-MM-DD}  — 주간업무보고
+     make_logs/{자동 ID}                          — 제작일지
+     repair_logs/{자동 ID}                        — 보수(점검)일지
+   ========================================================= */
+const WEEKLY_COLLECTION = 'weekly_reports';
+const MONTHLY_COLLECTION = 'monthly_reports';   // 문서 ID = 해당 월 1일(YYYY-MM-01)
+const MAKELOG_COLLECTION = 'make_logs';
+const REPAIRLOG_COLLECTION = 'repair_logs';
+const WR_ROWS = 6;
+
+const wrEl = id => document.getElementById(id);
+const wrEsc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const wrClone = o => JSON.parse(JSON.stringify(o));
+const wrHHMM = () => { const n = new Date(); return `${pad(n.getHours())}:${pad(n.getMinutes())}`; };
+const wrAdd = (d, n) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate()+n); return x; };
+const wrMonday = d => wrAdd(d, -((d.getDay()+6)%7));
+const wrFull = d => `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())}(${DOW[d.getDay()]})`;
+const wrShort = d => `${d.getMonth()+1}/${d.getDate()}(${DOW[d.getDay()]})`;
+const wrWeekLabel = mon => { const thu = wrAdd(mon,3); return `${thu.getFullYear()}년 ${thu.getMonth()+1}월 ${Math.ceil(thu.getDate()/7)}주차`; };
+const wrRowFilled = r => Object.values(r || {}).some(v => String(v ?? '').trim() !== '');
+function wrAutosize(t){
+  t.style.height = 'auto';
+  const h = Math.max(38, t.scrollHeight + (t.offsetHeight - t.clientHeight));   // 위·아래 여백이 같아 글이 상하 중앙
+  t.style.height = h + 'px';
+  const tr = t.closest('tr');                                                    // 같은 행의 입력란 높이를 맞춤
+  if(tr) tr.querySelectorAll('input:not([type="checkbox"])').forEach(i => { i.style.height = h + 'px'; });
+}
+function wrAutosizeAll(root){ root.querySelectorAll('textarea').forEach(t => { if(t.offsetParent !== null) wrAutosize(t); }); }
+
+/* ---------- 주간업무보고 ---------- */
+const wr = { mode: 'week', mon: null, state: null, dirty: false, loading: false, loadError: false, token: 0, inited: false };
+const wrNewPlan = () => ({content:'', date:'', note:''});
+const wrNewDone = () => ({content:'', date:'', status:''});
+const wrIsCarry = s => { s = (s || '').trim(); return s !== '' && s !== '완료'; };   // “완료”가 아닌 진행상태
+const wrKey = mon => fmtKey(mon);
+
+function wrBlank(){
+  return {
+    plan: Array.from({length:WR_ROWS}, wrNewPlan),
+    done: Array.from({length:WR_ROWS}, wrNewDone),
+    special: ''
+  };
+}
+function wrNormalize(s){
+  const out = {
+    plan: Array.isArray(s && s.plan) ? s.plan.map(p => ({...wrNewPlan(), ...p})) : [],
+    done: Array.isArray(s && s.done) ? s.done.map(p => ({...wrNewDone(), ...p})) : [],
+    special: (s && s.special) || ''
+  };
+  while(out.plan.length < WR_ROWS) out.plan.push(wrNewPlan());
+  while(out.done.length < WR_ROWS) out.done.push(wrNewDone());
+  return out;
+}
+const wrIsMonth = () => wr.mode === 'month';
+const wrCol = () => wrIsMonth() ? MONTHLY_COLLECTION : WEEKLY_COLLECTION;
+const wrStart = d => wrIsMonth() ? new Date(d.getFullYear(), d.getMonth(), 1) : wrMonday(d);       // 기준 기간의 시작일
+const wrStep = (s, n) => wrIsMonth() ? new Date(s.getFullYear(), s.getMonth()+n, 1) : wrAdd(s, 7*n);   // n 기간 이동
+const wrEndOf = s => wrIsMonth() ? new Date(s.getFullYear(), s.getMonth()+1, 0) : wrAdd(s, 6);       // 기간 마지막 날
+const wrPeriodLabel = s => wrIsMonth() ? `${s.getFullYear()}년 ${s.getMonth()+1}월` : wrWeekLabel(s);
+const wrKindName = () => wrIsMonth() ? '월간업무보고' : '주간업무보고';
+const wrPrevWord = () => wrIsMonth() ? '지난달' : '지난주';
+function wrApplyModeUI(){
+  const m = wrIsMonth();
+  wrEl('wrTitle').textContent = wrKindName();
+  wrEl('wrPrintTitle').textContent = wrKindName();
+  wrEl('wrModeBtn').textContent = m ? '주간' : '월간';
+  wrEl('wrToday').textContent = m ? '이번 달' : '이번 주';
+  wrEl('wrHint').textContent = m ? '기준 월(1일~말일)은 계획사항, 바로 앞 달은 실시사항 기간으로 표시됩니다. 계획사항의 ‘불러오기’는 진행상태가 “완료”가 아닌 실시사항을 계획사항으로, 실시사항의 ‘불러오기’는 이전 기간의 계획사항을 실시사항으로 가져옵니다. “전체 지우기”는 저장 전까지 화면만 비우며, 저장된 내용은 “저장”을 눌러야 바뀝니다.' : '기준 주(월~일)는 계획사항, 바로 앞 주는 실시사항 기간으로 표시됩니다. 계획사항의 ‘불러오기’는 진행상태가 “완료”가 아닌 실시사항을 계획사항으로, 실시사항의 ‘불러오기’는 이전 기간의 계획사항을 실시사항으로 가져옵니다. “전체 지우기”는 저장 전까지 화면만 비우며, 저장된 내용은 “저장”을 눌러야 바뀝니다.';
+}
+async function wrLoadWeek(mon){
+  const snap = await getDoc(doc(db, wrCol(), wrKey(mon)));
+  return snap.exists() ? snap.data() : null;
+}
+
+function wrSetStatus(text, cls){
+  const st = wrEl('wrStatus');
+  st.textContent = text || '';
+  st.className = 'wr-stat' + (cls ? ' ' + cls : '');
+}
+function wrSetDirty(v, text){
+  wr.dirty = v;
+  wrSetStatus(text || (v ? '● 저장되지 않은 변경사항' : ''), v ? 'dirty' : '');
+}
+function wrFillDatalist(id, start, end){
+  const opts = [];
+  for(let d = start; d <= end; d = wrAdd(d,1)) opts.push(wrShort(d));
+  if(wrIsMonth()) opts.push('월초','월중','월말','상시'); else opts.push('월~금','주중','상시');
+  wrEl(id).innerHTML = opts.map(o => `<option value="${wrEsc(o)}">`).join('');
+}
+function wrRowHTML(sec, i, it){
+  const content = `<td><textarea rows="1" data-f="content" placeholder="${sec==='plan'?'계획 업무':'실시한 업무'}">${wrEsc(it.content)}</textarea></td>`;
+  const date = `<td><input data-f="date" list="${sec==='plan'?'wrPlanDates':'wrDoneDates'}" autocomplete="off" value="${wrEsc(it.date)}"></td>`;
+  const last = sec==='plan'
+    ? `<td><input data-f="note" list="wrCatList" autocomplete="off" value="${wrEsc(it.note)}"></td>`
+    : `<td><input data-f="status" list="wrStatusList" autocomplete="off" value="${wrEsc(it.status)}"></td>`;
+  return `<tr data-i="${i}"><td class="no">${i+1}</td>${content}${date}${last}</tr>`;
+}
+function wrRenderRows(sec){
+  const tb = document.querySelector(sec==='plan' ? '#wrPlanTable tbody' : '#wrDoneTable tbody');
+  tb.innerHTML = wr.state[sec].map((it,i) => wrRowHTML(sec,i,it)).join('');
+  wrAutosizeAll(tb);
+}
+function wrRenderAll(){
+  wrRenderRows('plan');
+  wrRenderRows('done');
+  wrEl('wrSpecial').value = wr.state.special || '';
+  wrAutosize(wrEl('wrSpecial'));
+}
+function wrIsPastWeek(){ return !!wr.mon && wrKey(wr.mon) < wrKey(wrStart(new Date())); }
+function wrUpdateClear(){
+  const b = wrEl('wrClearBtn'), past = wrIsPastWeek();
+  b.disabled = past;
+  b.style.opacity = past ? '0.4' : '';
+  b.style.cursor = past ? 'not-allowed' : '';
+}
+function wrSetLoading(v){
+  wr.loading = v;
+  wrEl('wrBody').classList.toggle('wr-loading', v);
+}
+
+async function wrRender(){
+  const mon = wr.mon, sun = wrEndOf(mon), pMon = wrStep(mon,-1), pSun = wrAdd(mon,-1);
+  wrUpdateClear();
+  wrApplyModeUI();
+  const label = `${wrFull(mon)} ~ ${wrFull(sun)}`;
+  wrEl('wrWeekMain').textContent = wrPeriodLabel(mon);
+  wrEl('wrWeekSub').textContent = label;
+  wrEl('wrPrintSub').textContent = `${wrPeriodLabel(mon)} (${label})`;
+  wrEl('wrPlanPeriod').textContent = label;
+  wrEl('wrDonePeriod').textContent = `${wrFull(pMon)} ~ ${wrFull(pSun)}`;
+  wrEl('wrFoot').textContent = `작성일 : ${wrFull(new Date())}`;
+  wrFillDatalist('wrPlanDates', mon, sun);
+  wrFillDatalist('wrDoneDates', pMon, pSun);
+
+  const my = ++wr.token;
+  wr.loadError = false;
+  wr.state = wrBlank();
+  wrRenderAll();
+  wrSetLoading(true);
+  wrSetStatus('불러오는 중...');
+  let data = null;
+  try{ data = await wrLoadWeek(mon); }
+  catch(e){
+    console.error('weekly load failed', e);
+    if(my !== wr.token) return;
+    wr.loadError = true;
+    wrSetLoading(false);
+    wrSetStatus('저장된 내용을 불러오지 못했습니다. 네트워크를 확인한 뒤 ‘이번 주/이번 달’ 또는 ‹ › 버튼으로 다시 시도해주세요.', 'err');
+    return;
+  }
+  if(my !== wr.token) return;
+  wr.state = data ? wrNormalize(data) : wrBlank();
+  wrRenderAll();
+  wrSetLoading(false);
+  wrSetDirty(false);
+}
+
+function wrGo(date){
+  if(wr.dirty && !confirm('저장하지 않은 변경사항이 있습니다. 이동할까요?')) return;
+  wr.dirty = false;
+  wr.mon = wrStart(date);
+  wrRender();
+}
+// 탭 진입: 처음이면 달력에서 선택한 날짜의 주를 열고, 이후엔 작성 중인 내용이 없을 때만 새로 불러옴
+function wrEnter(){
+  if(!wr.inited){
+    wr.inited = true;
+    const [y,m,d] = (selectedDate || todayKey()).split('-').map(Number);
+    wr.mon = wrStart(new Date(y, m-1, d));
+    wrRender();
+  }else if(!wr.dirty && !wr.loading){
+    wrRender();
+  }else{
+    wrAutosizeAll(wrEl('page-report'));
+  }
+}
+
+[['wrPlanTable','plan'],['wrDoneTable','done']].forEach(([id, sec]) => {
+  const table = wrEl(id);
+  const onEdit = e => {
+    const t = e.target, tr = t.closest('tr');
+    if(!wr.state || !tr || !t.dataset.f) return;
+    wr.state[sec][+tr.dataset.i][t.dataset.f] = t.value;
+    if(t.tagName === 'TEXTAREA') wrAutosize(t);
+    if(!wr.dirty) wrSetDirty(true);
+  };
+  table.addEventListener('input', onEdit);
+  table.addEventListener('change', onEdit);
+});
+document.querySelectorAll('[data-wradd]').forEach(b => b.addEventListener('click', () => {
+  if(!wr.state) return;
+  const sec = b.dataset.wradd;
+  wr.state[sec].push(sec==='plan' ? wrNewPlan() : wrNewDone());
+  wrRenderRows(sec); wrSetDirty(true);
+}));
+// 행 삭제: 누를 때마다 내용이 없는 행을 아래쪽부터 하나씩 없앰
+function wrFlash(msg){
+  wrSetStatus(msg, 'err');
+  setTimeout(() => {
+    if(wrEl('wrStatus').textContent !== msg) return;
+    if(wr.dirty) wrSetDirty(true); else wrSetStatus('');
+  }, 2000);
+}
+document.querySelectorAll('[data-wrdel]').forEach(b => b.addEventListener('click', () => {
+  if(!wr.state) return;
+  const sec = b.dataset.wrdel, arr = wr.state[sec];
+  if(arr.length > 1){
+    for(let i = arr.length - 1; i >= 0; i--){
+      if(!wrRowFilled(arr[i])){
+        arr.splice(i, 1);
+        wrRenderRows(sec); wrSetDirty(true);
+        return;
+      }
+    }
+  }
+  wrFlash('삭제할 빈 행이 없습니다.');
+}));
+wrEl('wrNoticeBtn').addEventListener('click', () => {
+  const mon = wr.mon || wrStart(new Date());
+  openNoticeEditor(wrIsMonth() ? 'monthly' : 'weekly', wrKey(mon));
+});
+wrEl('wrSpecial').addEventListener('input', e => {
+  if(!wr.state) return;
+  wr.state.special = e.target.value; wrAutosize(e.target);
+  if(!wr.dirty) wrSetDirty(true);
+});
+wrEl('wrPrev').addEventListener('click', () => wrGo(wrStep(wr.mon,-1)));
+wrEl('wrNext').addEventListener('click', () => wrGo(wrStep(wr.mon, 1)));
+// 주간 ⇄ 월간 전환
+wrEl('wrModeBtn').addEventListener('click', () => {
+  if(wr.loading) return;
+  if(wr.dirty && !confirm('저장하지 않은 변경사항이 있습니다. 전환할까요?')) return;
+  wr.dirty = false;
+  let base;
+  if(wrIsMonth()){          // 월간 → 주간: 이번 달이면 오늘이 속한 주, 아니면 그 달 1일이 속한 주
+    const t = new Date();
+    base = (t.getFullYear() === wr.mon.getFullYear() && t.getMonth() === wr.mon.getMonth()) ? t : wr.mon;
+  }else{                    // 주간 → 월간: 그 주 목요일이 속한 달
+    base = wrAdd(wr.mon, 3);
+  }
+  wr.mode = wrIsMonth() ? 'week' : 'month';
+  wr.mon = wrStart(base);
+  wrRender();
+});
+wrEl('wrToday').addEventListener('click', () => wrGo(new Date()));
+
+async function wrSave(){
+  if(wr.loading){ alert('불러오는 중입니다. 잠시 후 다시 시도해주세요.'); return; }
+  if(wr.loadError){ alert('저장된 내용을 불러오지 못한 상태에서는 저장할 수 없습니다.\n(기존 내용을 덮어쓸 수 있습니다.) 다시 불러온 뒤 저장해주세요.'); return; }
+  const mon = wr.mon;
+  if(!confirm(`${wrPeriodLabel(mon)} ${wrKindName()}를 저장합니다.`)) return;
+  const st = wr.state;
+  const data = {
+    [wrIsMonth() ? 'monthStart' : 'weekStart']: wrKey(mon),
+    plan: st.plan.filter(wrRowFilled),
+    done: st.done.filter(wrRowFilled),
+    special: st.special || '',
+    updatedAt: Date.now()
+  };
+  try{
+    await setDoc(doc(db, wrCol(), wrKey(mon)), data);
+    if(wr.mon === mon) wrSetDirty(false, `저장됨 (${wrHHMM()})`);
+    alert('저장되었습니다.');
+  }catch(e){
+    console.error('weekly save failed', e);
+    alert('저장에 실패했습니다. 다시 시도해주세요.');
+  }
+}
+function wrClear(){
+  if(wrIsPastWeek()){ alert(`이전 ${wrIsMonth() ? '달' : '주'}의 업무보고는 전체 지우기를 할 수 없습니다.`); return; }
+  if(wr.loading || wr.loadError) return;
+  if(!confirm('작성 중인 내용을 모두 지울까요?\n(“저장”을 누르기 전까지 저장된 내용은 그대로 유지됩니다.)')) return;
+  wr.state = wrBlank();
+  wrRenderAll();
+  wrSetDirty(true);
+}
+// 계획사항 '불러오기': 진행상태가 “완료”가 아닌 실시사항을 계획사항으로 가져옴 (같은 내용은 건너뜀)
+function wrImportPlan(){
+  if(wr.loading || wr.loadError || !wr.state) return;
+  const st = wr.state;
+  const existing = new Set(st.plan.map(p => (p.content||'').trim()).filter(Boolean));
+  let carried = 0;
+  st.done
+    .filter(d => (d.content||'').trim() && wrIsCarry(d.status) && !existing.has(d.content.trim()))
+    .forEach(d => {
+      const item = {content:d.content, date:'', note:''};
+      const slot = st.plan.find(p => !(p.content||'').trim() && !p.date && !p.note);
+      if(slot) Object.assign(slot, item); else st.plan.push(item);
+      existing.add(d.content.trim());
+      carried++;
+    });
+  if(!carried){
+    alert('불러올 내용이 없습니다.\n실시사항에 “완료” 외의 진행상태(진행중·지연 등)가 입력된 항목이 없거나, 이미 계획사항에 들어 있습니다.');
+    return;
+  }
+  wrRenderRows('plan'); wrSetDirty(true);
+  alert(`완료되지 않은 실시사항 ${carried}건을 계획사항에 추가했습니다.`);
+}
+// 실시사항 '불러오기': 이전 주(월)의 저장된 계획사항을 실시사항으로 복사 (같은 내용은 건너뜀)
+async function wrImportDone(){
+  if(wr.loading || wr.loadError || !wr.state) return;
+  const my = wr.token;
+  let prev = null;
+  try{ prev = await wrLoadWeek(wrStep(wr.mon,-1)); }
+  catch(e){ alert(`${wrPrevWord()} 계획사항을 불러오지 못했습니다. 다시 시도해주세요.`); return; }
+  if(my !== wr.token) return;
+  const items = ((prev && prev.plan) || []).filter(p => (p.content||'').trim());
+  if(!items.length){ alert(`${wrPrevWord()}에 저장된 계획사항이 없습니다.`); return; }
+  const st = wr.state;
+  const existing = new Set(st.done.map(d => (d.content||'').trim()).filter(Boolean));
+  let added = 0;
+  items.forEach(p => {
+    if(existing.has(p.content.trim())) return;
+    const item = {content:p.content, date:p.date || '', status:''};
+    const slot = st.done.find(d => !(d.content||'').trim() && !d.date && !d.status);
+    if(slot) Object.assign(slot, item); else st.done.push(item);
+    existing.add(p.content.trim());
+    added++;
+  });
+  if(!added){ alert(`${wrPrevWord()} 계획사항이 이미 모두 실시사항에 들어 있습니다.`); return; }
+  wrRenderRows('done'); wrSetDirty(true);
+  alert(`${wrPrevWord()} 계획 ${added}건을 실시사항으로 복사했습니다.`);
+}
+wrEl('wrSaveBtn').addEventListener('click', wrSave);
+wrEl('wrPrintBtn').addEventListener('click', () => window.print());
+wrEl('wrClearBtn').addEventListener('click', wrClear);
+wrEl('wrPlanImport').addEventListener('click', wrImportPlan);
+wrEl('wrDoneImport').addEventListener('click', wrImportDone);
+
+/* ---------- 제작일지 / 보수(점검)일지 ---------- */
+const WL_LISTS = {
+  makeKinds:   ['생방송','녹화','기타'],
+  places:      ['뉴스센터','공개홀','중계현장','야외'],
+  roles:       ['기술감독','영상','음향','CAM','조명','CG','VCR','FD','기타'],
+  repairKinds: ['고장수리','정기점검','수시점검','설치이전','기타'],
+  impacts:     ['없음','경미','방송중단/사고']
+};
+wrEl('wlLists').innerHTML = Object.entries(WL_LISTS).map(([k,v]) =>
+  `<datalist id="dl_${k}">${v.map(o => `<option value="${wrEsc(o)}">`).join('')}</datalist>`).join('');
+
+// 양식 정의: grid(항목 칸) / table(반복 행) / text(자유 서술). 열 너비 w 는 표 폭 대비 %
+const WL_DEFS = {
+  make: {
+    title:'제작일지',
+    col: MAKELOG_COLLECTION,
+    label: d => `${d.date||'-'} · ${d.program||'(프로그램명 없음)'}`,
+    sections:[
+      {type:'grid', title:'기본 사항', fields:[
+        {k:'date',l:'일 자',t:'date'},{k:'author',l:'작성자'},
+        {k:'program',l:'프로그램명'},{k:'kind',l:'제작 구분',list:'makeKinds'},
+        {k:'place',l:'제작 장소',list:'places'},{k:'pd',l:'연 출'},
+        {k:'start',l:'제작 시작',t:'time'},{k:'end',l:'제작 종료',t:'time'}
+      ]},
+      {type:'table', k:'crew', pairs:true, title:'제작인원', rows:4, cols:[
+        {k:'role',l:'구 분',list:'roles',w:'17%'},{k:'name',l:'성 명'}
+      ]},
+      {type:'table', k:'equip', title:'사용 장비', rows:4, cols:[
+        {k:'name',l:'장비명',w:'34%'},{k:'qty',l:'수량',w:'16%'},{k:'comp',l:'구성'}
+      ]},
+      {type:'table', k:'content', title:'제작 내용', rows:6, cols:[
+        {k:'work',l:'제작 내용',t:'area'},{k:'note',l:'비 고',w:'30%'}
+      ]}
+    ]
+  },
+  repair: {
+    title:'보수(점검)일지',
+    col: REPAIRLOG_COLLECTION,
+    label: d => `${d.date||'-'} · ${d.equip||'(장비명 없음)'}`,
+    sections:[
+      {type:'grid', title:'기본 사항', fields:[
+        {k:'date',l:'일 자',t:'date'},{k:'author',l:'작성자'},
+        {k:'kind',l:'작업 구분',list:'repairKinds'},{k:'impact',l:'방송 영향',list:'impacts'},
+        {k:'equip',l:'장비명'},{k:'location',l:'설치 위치'},
+        {k:'model',l:'제조사 / 모델'},{k:'serial',l:'S/N'},
+        {k:'start',l:'작업 시작',t:'time'},{k:'end',l:'작업 종료',t:'time'}
+      ]},
+      {type:'table', k:'symptom', title:'증상 / 점검 사유', rows:5, cols:[
+        {k:'text',l:'증상 / 점검 사유',t:'area'},{k:'note',l:'비 고',w:'30%'}
+      ]},
+      {type:'table', k:'work', title:'보수 / 처리 내용', rows:5, cols:[
+        {k:'text',l:'보수 / 처리 내용',t:'area'},{k:'note',l:'비 고',w:'30%'}
+      ]},
+      {type:'text', k:'followup', title:'후속 조치 / 특이사항', h:100}
+    ]
+  }
+};
+
+const wl = { saved: [], kind: null, date: null, data: null, dirty: false, touched: false, loading: false, loadError: false, busy: false, token: 0 };
+const wlOverlay = wrEl('wlOverlay');
+
+// kind 양식에 맞춰 data 를 채움(저장본에 없는 칸·행은 빈 값/빈 행으로 보충)
+function wlBuild(kind, src){
+  const data = {};
+  WL_DEFS[kind].sections.forEach(s => {
+    if(s.type === 'grid'){
+      s.fields.forEach(f => { data[f.k] = (src && src[f.k] !== undefined) ? String(src[f.k]) : (f.k === 'date' ? todayKey() : ''); });
+    }else if(s.type === 'table'){
+      const arr = (src && Array.isArray(src[s.k])) ? wrClone(src[s.k]) : [];
+      const need = s.rows * (s.pairs ? 2 : 1);
+      while(arr.length < need) arr.push({});
+      if(s.pairs && arr.length % 2) arr.push({});
+      data[s.k] = arr;
+    }else{
+      data[s.k] = (src && src[s.k]) || '';
+    }
+  });
+  return data;
+}
+function wlClean(kind, data){
+  const out = {};
+  WL_DEFS[kind].sections.forEach(s => {
+    if(s.type === 'table') out[s.k] = (data[s.k] || []).filter(wrRowFilled);
+    else if(s.type === 'grid') s.fields.forEach(f => { out[f.k] = data[f.k] || ''; });
+    else out[s.k] = data[s.k] || '';
+  });
+  return out;
+}
+
+function wlCtl(f, val, attrs){
+  if(f.t === 'area') return `<textarea rows="1" ${attrs}>${wrEsc(val)}</textarea>`;
+  if(f.t === 'date' || f.t === 'time') return `<span class="dt-wrap"><span class="dt-text">${wrEsc(val)}</span><input type="${f.t}" ${attrs} autocomplete="off" value="${wrEsc(val)}"></span>`;
+  return `<input type="${f.t||'text'}" ${attrs}${f.list?` list="dl_${f.list}"`:''} autocomplete="off" value="${wrEsc(val)}">`;
+}
+function wlPaperHTML(){
+  const S = WL_DEFS[wl.kind], d = wl.data;
+  return S.sections.map(s => {
+    if(s.type === 'grid'){
+      const rowsHTML = [];
+      for(let i = 0; i < s.fields.length; i += 2){
+        const cell = f => f
+          ? `<td class="no lbl">${f.l}</td><td>${wlCtl(f, d[f.k] ?? '', `data-k="${f.k}"`)}</td>`
+          : `<td class="no lbl"></td><td></td>`;
+        rowsHTML.push('<tr>' + [s.fields[i], s.fields[i+1]].map(cell).join('') + '</tr>');
+      }
+      return `<div class="card"><div class="title">${s.title}</div><div class="sec"><table class="info"><colgroup><col style="width:17%"><col style="width:33%"><col style="width:17%"><col style="width:33%"></colgroup><tbody>${rowsHTML.join('')}</tbody></table></div></div>`;
+    }
+    if(s.type === 'table'){
+      const items = d[s.k] || [];
+      const heads = s.cols.map(c => `<th${c.w?` style="width:${c.w}"`:''}>${c.l}</th>`).join('');
+      let head, rows;
+      if(s.pairs){   // 한 행에 2명(칸 묶음 2개)
+        head = `<tr><th class="w-no">No</th>${heads}<th class="w-no">No</th>${heads}</tr>`;   // No·구분·성명 | No·구분·성명
+        const lines = Math.max(1, Math.ceil(items.length / 2));
+        rows = Array.from({length: lines}, (_, r) => {
+          const side = n => { const it = items[r*2 + n] || {}; return `<td class="no">${r*2 + n + 1}</td>` + s.cols.map(c =>
+            `<td>${wlCtl(c, it[c.k] ?? '', `data-c="${c.k}" data-s="${n}"`)}</td>`).join(''); };
+          return `<tr data-t="${s.k}" data-r="${r}">${side(0)}${side(1)}</tr>`;
+        }).join('');
+      }else{
+        head = `<tr><th class="w-no">No</th>${heads}</tr>`;
+        rows = items.map((row,i) =>
+          `<tr data-t="${s.k}" data-r="${i}"><td class="no">${i+1}</td>${s.cols.map(c =>
+            `<td>${wlCtl(c, row[c.k] ?? '', `data-c="${c.k}"`)}</td>`).join('')}</tr>`).join('');
+      }
+      return `<div class="card"><div class="title">${s.title}</div><div class="sec"><table>` +
+        `<thead>${head}</thead><tbody>${rows}</tbody></table>` +
+        `<div class="rowbtns"><button type="button" class="ghost" data-addrow="${s.k}">+ 행 추가</button>` +
+        `<button type="button" class="ghost" data-delrow="${s.k}">− 행 삭제</button></div></div></div>`;
+    }
+    return `<div class="card"><div class="title">${s.title}</div><div class="sec"><textarea data-k="${s.k}" style="min-height:${s.h||80}px">${wrEsc(d[s.k] ?? '')}</textarea></div></div>`;
+  }).join('');
+}
+function wlRenderPaper(){
+  const paper = wrEl('wlPaper');
+  paper.innerHTML = wlPaperHTML();
+  wrAutosizeAll(paper);
+}
+function wlSetStatus(text, cls){
+  const st = wrEl('wlStatus');
+  st.textContent = text || '';
+  st.className = 'wr-stat' + (cls ? ' ' + cls : '');
+}
+function wlSetDirty(v, text){
+  wl.dirty = v;
+  wlSetStatus(text || (v ? '● 저장되지 않은 변경사항' : ''), v ? 'dirty' : '');
+}
+function wlFlash(msg){
+  wlSetStatus(msg, 'err');
+  setTimeout(() => {
+    if(wrEl('wlStatus').textContent !== msg) return;
+    if(wl.dirty) wlSetDirty(true); else wlSetStatus('');
+  }, 2000);
+}
+
+// 일지는 종류별로 날짜당 1건(문서 ID = 일자). 달력에서 고른 날짜의 일지를 열고, 일자를 바꾸면 그 날짜의 일지를 불러옴
+async function wlOpen(kind){
+  const date = selectedDate || todayKey();
+  wl.kind = kind; wl.date = date; wl.data = wlBuild(kind, {date});
+  wl.dirty = false; wl.touched = false; wl.loadError = false; wl.loading = true;
+  const my = ++wl.token;
+  wrEl('wlTitle').textContent = WL_DEFS[kind].title;
+  wrEl('wlPrintTitle').textContent = WL_DEFS[kind].title;
+  wlRenderPaper();
+  wlSetStatus('불러오는 중...');
+  wlOverlay.classList.add('open');
+  wlOverlay.scrollTop = 0;
+  wl.saved = []; wlUpdateNav(); wlLoadSaved();
+  try{
+    const snap = await getDoc(doc(db, WL_DEFS[kind].col, date));
+    if(my !== wl.token) return;
+    if(snap.exists()){
+      wl.data = wlBuild(kind, snap.data()); wl.data.date = date;
+      wlRenderPaper();
+      wlSetStatus('저장된 일지를 불러왔습니다.');
+    }else{
+      wlSetStatus('');
+    }
+    wl.loading = false;
+  }catch(e){
+    console.error('log load failed', e);
+    if(my !== wl.token) return;
+    wl.loading = false; wl.loadError = true;
+    wlSetStatus('저장된 일지를 불러오지 못했습니다. 닫고 다시 열어주세요.', 'err');
+  }
+}
+function wlTryClose(){
+  if(wl.busy) return;
+  if(wl.dirty && !confirm('저장하지 않은 내용이 있습니다. 닫을까요?')) return;
+  wlOverlay.classList.remove('open');
+  wl.token++; wl.kind = null; wl.data = null; wl.loading = false;
+  wlSetDirty(false);
+}
+
+async function wlDateChanged(v, input){ await wlDateChanged0(v, input); wlUpdateNav(); }
+async function wlDateChanged0(v, input){
+  if(!wl.kind || !wl.data) return;
+  if(!v){ wlSyncDt(input, wl.date); return; }
+  if(v === wl.date) return;
+  const my = ++wl.token;
+  wl.loading = true;
+  let snap;
+  try{ snap = await getDoc(doc(db, WL_DEFS[wl.kind].col, v)); }
+  catch(e){
+    if(my !== wl.token) return;
+    wl.loading = false; wlSyncDt(input, wl.date);
+    alert('해당 날짜의 일지를 확인하지 못했습니다. 다시 시도해주세요.');
+    return;
+  }
+  if(my !== wl.token) return;
+  wl.loading = false;
+  if(snap.exists()){
+    if(wl.touched && !confirm(`${v} 에 저장된 일지가 있습니다. 불러올까요?\n(작성 중인 내용은 사라집니다.)`)){ wlSyncDt(input, wl.date); return; }
+    wl.data = wlBuild(wl.kind, snap.data()); wl.data.date = v; wl.date = v; wl.touched = false;
+    wlRenderPaper(); wlSetDirty(false, '저장된 일지를 불러왔습니다.');
+  }else{
+    wl.date = v;
+    if(wl.touched){            // 작성 중이던 내용은 그대로 두고 날짜만 옮김
+      wl.data.date = v; wlSetDirty(true);
+    }else{                     // 저장본을 보던 중이면 새 날짜의 빈 일지로
+      wl.data = wlBuild(wl.kind, {date: v});
+      wlRenderPaper(); wlSetDirty(false);
+    }
+  }
+}
+
+function wlOnEdit(e){
+  const t = e.target;
+  if(!wl.data) return;
+  if(t.dataset.k === 'date') return;       // 일자는 change 에서 따로 처리
+  if(t.dataset.k){
+    wl.data[t.dataset.k] = t.value;
+  }else if(t.dataset.c){
+    const tr = t.closest('tr');
+    const arr = wl.data[tr.dataset.t];
+    const idx = t.dataset.s !== undefined ? (+tr.dataset.r)*2 + (+t.dataset.s) : +tr.dataset.r;
+    (arr[idx] = arr[idx] || {})[t.dataset.c] = t.value;
+  }else return;
+  if(t.tagName === 'TEXTAREA') wrAutosize(t);
+  wl.touched = true;
+  if(!wl.dirty) wlSetDirty(true);
+}
+const wlPaper = wrEl('wlPaper');
+// 일자·시간 칸: 값이 바뀌면 보이는 글자도 갱신, 눌렀을 때 선택창 열기(PC 포함)
+function wlSyncDt(input, v){
+  if(v !== undefined) input.value = v;
+  const sp = input.previousElementSibling;
+  if(sp && sp.classList.contains('dt-text')) sp.textContent = input.value;
+}
+['input','change'].forEach(ev => wlPaper.addEventListener(ev, e => { if(e.target.type==='date' || e.target.type==='time') wlSyncDt(e.target); }));
+wlPaper.addEventListener('click', e => {
+  const t = e.target;
+  if(t.tagName === 'INPUT' && (t.type === 'date' || t.type === 'time') && t.showPicker){ try{ t.showPicker(); }catch(_){} }
+});
+wlPaper.addEventListener('input', wlOnEdit);
+wlPaper.addEventListener('change', e => {
+  if(e.target.dataset.k === 'date') wlDateChanged(e.target.value, e.target);
+  else wlOnEdit(e);
+});
+wlPaper.addEventListener('click', e => {
+  const t = e.target;
+  if(!wl.data) return;
+  const spec = key => WL_DEFS[wl.kind].sections.find(s => s.k === key);
+  if(t.dataset.addrow){
+    const arr = wl.data[t.dataset.addrow];
+    arr.push({}); if(spec(t.dataset.addrow).pairs) arr.push({});
+    wlRenderPaper(); wlSetDirty(true);
+  }else if(t.dataset.delrow){
+    // 내용이 없는 행(한 행에 2칸이면 두 칸 모두 빈 행)을 아래쪽부터 하나씩 삭제
+    const key = t.dataset.delrow, arr = wl.data[key], step = spec(key).pairs ? 2 : 1;
+    for(let i = arr.length - step; i >= 0 && arr.length > step; i -= step){
+      if(!arr.slice(i, i + step).some(wrRowFilled)){
+        arr.splice(i, step);
+        wlRenderPaper(); wlSetDirty(true);
+        return;
+      }
+    }
+    wlFlash('삭제할 빈 행이 없습니다.');
+  }
+});
+
+async function wlSave(){
+  if(wl.busy || !wl.kind) return;
+  if(wl.loading){ alert('불러오는 중입니다. 잠시 후 다시 시도해주세요.'); return; }
+  if(wl.loadError){ alert('저장된 일지를 불러오지 못한 상태에서는 저장할 수 없습니다.\n(기존 내용을 덮어쓸 수 있습니다.) 닫고 다시 열어주세요.'); return; }
+  const S = WL_DEFS[wl.kind];
+  const date = wl.data.date;
+  if(!date){ alert('일자를 입력해주세요.'); return; }
+  if(!confirm(`${date} ${S.title}를 저장합니다.`)) return;
+  wl.busy = true;
+  try{
+    await setDoc(doc(db, S.col, date), {...wlClean(wl.kind, wl.data), updatedAt: Date.now()});
+    wl.touched = false;
+    if(!wl.saved.includes(date)){ wl.saved.push(date); wl.saved.sort(); }
+    wlUpdateNav();
+    wlSetDirty(false, `저장됨 (${wrHHMM()})`);
+    alert('저장되었습니다.');
+  }catch(e){
+    console.error('log save failed', e);
+    alert('저장에 실패했습니다. 다시 시도해주세요.');
+  }finally{
+    wl.busy = false;
+  }
+}
+wrEl('wlSave').addEventListener('click', wlSave);
+wrEl('wlPrint').addEventListener('click', () => window.print());
+wrEl('wlClose').addEventListener('click', wlTryClose);
+wrEl('wlClose2').addEventListener('click', wlTryClose);
+// 저장된 일지가 있는 날짜로 좌우 이동
+async function wlLoadSaved(){
+  const kind = wl.kind;
+  try{
+    const snap = await getDocs(collection(db, WL_DEFS[kind].col));
+    if(wl.kind !== kind) return;
+    wl.saved = snap.docs.map(d => d.id).sort();
+  }catch(e){ console.error('saved list failed', e); }
+  wlUpdateNav();
+}
+function wlUpdateNav(){
+  if(!wl.kind) return;
+  const cur = wl.date || '';
+  const prev = [...wl.saved].reverse().find(d => d < cur) || '';
+  const next = wl.saved.find(d => d > cur) || '';
+  const pb = wrEl('wlPrevLog'), nb = wrEl('wlNextLog');
+  pb.disabled = !prev; nb.disabled = !next;
+  pb.dataset.to = prev; nb.dataset.to = next;
+  pb.title = prev ? `이전 일지: ${prev}` : '이전 일지 없음';
+  nb.title = next ? `다음 일지: ${next}` : '다음 일지 없음';
+  wrEl('wlNavLabel').innerHTML = `${wrEsc(cur)}<span class="wr-sub">저장된 일지 ${wl.saved.length}건${wl.saved.includes(cur) ? ' · 이 날짜 저장됨' : ''}</span>`;
+}
+['wlPrevLog','wlNextLog'].forEach(id => wrEl(id).addEventListener('click', async () => {
+  const to = wrEl(id).dataset.to;
+  if(!to || wl.busy || wl.loading) return;
+  if(wl.dirty && !confirm('저장하지 않은 내용이 있습니다. 이동할까요?')) return;
+  wl.touched = false;
+  await wlDateChanged(to, {value:''});
+}));
+wrEl('wrMakeLog').addEventListener('click', () => wlOpen('make'));
+wrEl('wrRepairLog').addEventListener('click', () => wlOpen('repair'));
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && wlOverlay.classList.contains('open')) wlTryClose(); });
+
+/* 인쇄: 일지 창이 열려 있으면 일지만 출력 */
+// 인쇄용: 입력 칸(textarea)은 높이가 화면 기준으로 고정되어 있으므로, 인쇄 직전에 글 길이에 맞게 늘어나는 복사본으로 바꿔 출력
+function ptMakeCopies(){
+  document.querySelectorAll('#page-report textarea, #wlOverlay textarea, #tvForm textarea, #radioForm textarea').forEach(t => {
+    if(t.nextElementSibling && t.nextElementSibling.classList.contains('pt-copy')) return;
+    const c = document.createElement('div');
+    c.className = 'pt-copy' + (t.closest('td') ? ' in-cell' : '');
+    c.textContent = t.value;
+    t.classList.add('pt-hide');
+    t.after(c);
+  });
+}
+function ptClearCopies(){
+  document.querySelectorAll('.pt-copy').forEach(c => c.remove());
+  document.querySelectorAll('.pt-hide').forEach(t => t.classList.remove('pt-hide'));
+}
+window.addEventListener('beforeprint', () => {
+  if(wlOverlay.classList.contains('open')) document.body.classList.add('printing-log');
+  ptMakeCopies();
+});
+window.addEventListener('afterprint', () => { document.body.classList.remove('printing-log'); ptClearCopies(); });
+// 저장하지 않고 페이지를 떠날 때 경고
+window.addEventListener('beforeunload', e => { if(wr.dirty || wl.dirty){ e.preventDefault(); e.returnValue = ''; } });
+
+/* =========================================================
+   INIT
+   ========================================================= */
+async function init(){
+  selectedDate = todayKey();
+  await mainRenderCalendar();
+  await tvOpenDetail(selectedDate);
+  await radioOpenDetail(selectedDate);
+  checkNotices();
+  refreshNoticeBadge();
+}
+
+/* =========================================================
+   LOGIN (Firebase Authentication — 이메일/비밀번호)
+   로그인하기 전에는 화면과 Firestore 조회를 모두 시작하지 않음
+   ========================================================= */
+const lgEl = { form:$$('loginForm'), email:$$('lgEmail'), pw:$$('lgPw'), go:$$('lgGo'), reset:$$('lgReset'), msg:$$('lgMsg') };
+function $$(id){ return document.getElementById(id); }
+function lgMsg(t, ok){ lgEl.msg.textContent = t || ''; lgEl.msg.className = 'lg-msg' + (ok ? ' ok' : ''); }
+function lgErr(e){
+  const c = (e && e.code) || '';
+  if(c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found') || c.includes('invalid-email'))
+    return '이메일 또는 비밀번호가 올바르지 않습니다.';
+  if(c.includes('too-many-requests')) return '시도가 너무 많습니다. 잠시 후 다시 시도하거나 비밀번호를 재설정해주세요.';
+  if(c.includes('network')) return '네트워크 연결을 확인해주세요.';
+  if(c.includes('user-disabled')) return '사용이 중지된 계정입니다. 관리자에게 문의하세요.';
+  return '로그인에 실패했습니다. 다시 시도해주세요.';
+}
+lgEl.form.addEventListener('submit', async e => {
+  e.preventDefault();
+  lgMsg(''); lgEl.go.disabled = true;
+  try{ await signInWithEmailAndPassword(auth, lgEl.email.value.trim().toLowerCase(), lgEl.pw.value); }
+  catch(err){ console.error('login failed', err); lgMsg(lgErr(err)); }
+  lgEl.go.disabled = false;
+});
+lgEl.reset.addEventListener('click', async () => {
+  const em = lgEl.email.value.trim().toLowerCase();
+  if(!em){ lgMsg('위 칸에 이메일을 먼저 입력해주세요.'); return; }
+  try{ await sendPasswordResetEmail(auth, em); }catch(err){ console.error(err); }
+  lgMsg('입력한 주소가 등록된 계정이면 재설정 메일이 발송됩니다. 메일함(스팸함 포함)을 확인해주세요.', true);   // 계정 유무를 알려주지 않음
+});
+$$('logoutBtn').addEventListener('click', async () => {
+  if(typeof wr !== 'undefined' && (wr.dirty || wl.dirty) && !confirm('저장하지 않은 내용이 있습니다. 로그아웃할까요?')) return;
+  try{ await signOut(auth); }catch(e){ console.error(e); }
+  location.reload();
+});
+let appStarted = false;
+onAuthStateChanged(auth, user => {
+  if(user){
+    document.body.classList.remove('locked');
+    lgEl.pw.value = ''; lgMsg('');
+    if(!appStarted){ appStarted = true; init(); }
+  }else{
+    document.body.classList.add('locked');
+  }
+});
+</script>
+</body>
+</html>
