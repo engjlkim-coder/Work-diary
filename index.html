@@ -2234,8 +2234,9 @@ function wrNormalize(s){
     done: Array.isArray(s && s.done) ? s.done.map(p => ({...wrNewDone(), ...p})) : [],
     special: (s && s.special) || ''
   };
-  while(out.plan.length < WR_ROWS) out.plan.push(wrNewPlan());
-  while(out.done.length < WR_ROWS) out.done.push(wrNewDone());
+  // 저장된 보고서는 저장한 행 수 그대로 불러옴(빈 행을 지우고 저장했으면 지운 상태 유지). 행이 하나도 없을 때만 빈 행 1개 보충
+  if(!out.plan.length) out.plan.push(wrNewPlan());
+  if(!out.done.length) out.done.push(wrNewDone());
   return out;
 }
 const wrIsMonth = () => wr.mode === 'month';
@@ -2796,7 +2797,9 @@ function wlBuild(kind, src){
       s.fields.forEach(f => { data[f.k] = (src && src[f.k] !== undefined) ? String(src[f.k]) : (f.k === 'date' ? todayKey() : ''); });
     }else if(s.type === 'table'){
       const arr = (src && Array.isArray(src[s.k])) ? wrClone(src[s.k]) : [];
-      const need = s.rows * (s.pairs ? 2 : 1);
+      // 저장본이 있으면 저장된 행 수 그대로(최소 1행), 새 일지일 때만 기본 행 수로 채움
+      const saved = !!(src && Array.isArray(src[s.k]));
+      const need = saved ? (s.pairs ? 2 : 1) : s.rows * (s.pairs ? 2 : 1);
       while(arr.length < need) arr.push({});
       if(s.pairs && arr.length % 2) arr.push({});
       data[s.k] = arr;
