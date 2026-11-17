@@ -3463,7 +3463,7 @@ $$('logoutBtn').addEventListener('click', async () => {
      공지 작성 시 대상자 목록에 나타나도록 push_users/{내 이메일} 에 이름이 저장됩니다.
    - 실제 발송은 GitHub Actions(send-push.mjs)가 공지 날짜 아침에 합니다.
    ========================================================= */
-const VAPID_KEY = 'BDD3HQ_p9iVitFYklSK945Aa8x0jzQDgvV0qbXPYbR3JUavHkN3o4bjowmvuby68rXzYjupfzJyjaHrgtRqNKD4';
+const VAPID_KEY = '여기에_VAPID_공개키_붙여넣기';
 const pushEl = { state: $$('pushState'), btn: $$('pushBtn') };
 const pushIsIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const pushStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -3516,7 +3516,7 @@ async function pushEnable(){
     alert('알림이 설정되었습니다.');
   }catch(e){
     console.error('push enable failed', e);
-    alert('알림 설정에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    alert('알림 설정에 실패했습니다. 잠시 후 다시 시도해주세요.\n\n[오류 정보] ' + (e.code || e.name || '') + ' ' + String(e.message || e).slice(0, 160));
   }finally{
     pushEl.btn.disabled = false; pushRefresh();
   }
