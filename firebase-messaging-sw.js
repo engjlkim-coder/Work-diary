@@ -1,16 +1,28 @@
 // 백그라운드(앱이 닫혀 있을 때) 푸시 알림 수신용. index.html 과 같은 폴더(저장소 맨 위)에 둡니다.
-importScripts('https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.12.5/firebase-messaging-compat.js');
+// Firebase 라이브러리를 불러오지 않고(외부 파일 의존 없음) 푸시 이벤트를 직접 처리합니다.
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 
-firebase.initializeApp({
-  apiKey: "AIzaSyAZxNMz_RR0vyos7My8wYq6NLPiDk5smD8",
-  authDomain: "work-dairy-48ffb.firebaseapp.com",
-  projectId: "work-dairy-48ffb",
-  storageBucket: "work-dairy-48ffb.firebasestorage.app",
-  messagingSenderId: "744194512360",
-  appId: "1:744194512360:web:81c7177afc8013bd71005d"
+self.addEventListener('push', event => {
+  let d = {};
+  try{ d = event.data ? event.data.json() : {}; }catch(e){ d = { notification: { body: event.data ? event.data.text() : '' } }; }
+  const n = d.notification || d.data || {};
+  const title = n.title || '공지사항';
+  const link = (d.fcmOptions && d.fcmOptions.link) || (d.data && d.data.link) || n.click_action || './';
+  event.waitUntil(self.registration.showNotification(title, {
+    body: n.body || '',
+    icon: 'icon-192.png',
+    badge: 'icon-192.png',
+    data: { link }
+  }));
 });
 
-// notification 형식으로 보낸 메시지는 브라우저가 알아서 알림창에 표시하고,
-// 알림을 누르면 보낼 때 지정한 링크(fcmOptions.link)로 열립니다.
-firebase.messaging();
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const link = (event.notification.data && event.notification.data.link) || './';
+  const url = new URL(link, self.registration.scope).href;
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    for(const c of list){ if('focus' in c) return c.focus(); }      // 이미 열려 있으면 그 창으로
+    return self.clients.openWindow(url);
+  }));
+});

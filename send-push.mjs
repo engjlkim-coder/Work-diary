@@ -27,7 +27,7 @@ for (const d of snap.docs) {
   const title = (n.title || '').trim() || '공지사항';
   const body = String(n.message || '').replace(/\s+/g, ' ').trim().slice(0, 120) || '새 공지가 있습니다.';
   const message = { tokens, notification: { title: `📢 ${title}`, body } };
-  if (APP_URL) message.webpush = { fcmOptions: { link: APP_URL } };
+  if (APP_URL) { message.webpush = { fcmOptions: { link: APP_URL } }; message.data = { link: APP_URL }; }
 
   const res = await admin.messaging().sendEachForMulticast(message);
   console.log(`${d.id}: 성공 ${res.successCount} / 실패 ${res.failureCount}`);
