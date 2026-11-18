@@ -1,7 +1,8 @@
 name: daily-push
 on:
   schedule:
-    - cron: '*/15 * * * *'      # 시험용파일: 15분마다 (시험이 끝나면 원래 설정으로 되돌릴 것)
+    - cron: '17 23 * * *'      # UTC 23:17 = 한국 시간 아침 08:17 (1차)
+    - cron: '47 23 * * *'      # UTC 23:47 = 한국 시간 아침 08:47 (1차가 빠졌을 때를 위한 예비)
   workflow_dispatch:            # Actions 탭에서 수동 실행(테스트용)
 jobs:
   send:
