@@ -1,0 +1,18 @@
+name: daily-push
+on:
+  schedule:
+    - cron: '*/15 * * * *'      # 시험용: 15분마다 (시험이 끝나면 원래 설정으로 되돌릴 것)
+  workflow_dispatch:            # Actions 탭에서 수동 실행(테스트용)
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save firebase-admin@12
+      - run: node send-push.mjs
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          APP_URL: ${{ vars.APP_URL }}
