@@ -1,7 +1,7 @@
 name: daily-push
 on:
   schedule:
-    - cron: '*/15 * * * *'      # 시험용: 15분마다 (시험이 끝나면 원래 설정으로 되돌릴 것)
+    - cron: '*/15 * * * *'      # 시험용파일: 15분마다 (시험이 끝나면 원래 설정으로 되돌릴 것)
   workflow_dispatch:            # Actions 탭에서 수동 실행(테스트용)
 jobs:
   send:
