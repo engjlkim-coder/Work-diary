@@ -35,20 +35,27 @@ async function updateBadge(){
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  event.waitUntil(updateBadge());
   const d = event.notification.data || {};
-  const url = new URL(d.link || './', self.registration.scope);
-  if(d.noticeId) url.searchParams.set('notice', d.noticeId);       // 앱이 새로 열릴 때 이 공지를 팝업으로 보여줌
+  let url;
+  try{
+    url = new URL(d.link || './', self.registration.scope);
+    if(d.noticeId) url.searchParams.set('notice', d.noticeId);       // 앱이 새로 열릴 때 이 공지를 팝업으로 보여줌
+  }catch(e){ url = new URL('./', self.registration.scope); }
   event.waitUntil((async () => {
-    const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    const c = list.find(x => 'focus' in x);
-    if(c){                                                           // 이미 열려 있으면 그 창에 공지 번호를 전달
-      try{
+    try{ await updateBadge(); }catch(e){}
+    let handled = false;
+    try{                                                              // 이미 열려 있는 앱 창이 있으면 그 창으로 이동 + 공지 번호 전달
+      const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const c = list.find(x => 'focus' in x && x.url.startsWith(self.registration.scope));
+      if(c){
         if(d.noticeId) c.postMessage({ type: 'open-notice', id: d.noticeId });
         await c.focus();
-        return;
-      }catch(e){}
+        handled = true;
+      }
+    }catch(e){}
+    if(!handled){                                                     // 열려 있는 창이 없거나 실패하면 새로 열기 (실패하면 앱 첫 화면으로)
+      try{ await self.clients.openWindow(url.href); }
+      catch(e){ try{ await self.clients.openWindow(self.registration.scope); }catch(_){} }
     }
-    return self.clients.openWindow(url.href);
   })());
 });
