@@ -16,6 +16,7 @@ self.addEventListener('push', event => {
       icon: 'icon-192.png',
       badge: 'icon-192.png',
       tag: noticeId ? 'notice-' + noticeId : undefined,     // 같은 공지 알림은 하나로 합침
+      renotify: !!noticeId,                                  // 같은 공지를 다시 보내도 소리·배너로 다시 알림
       data: { link, noticeId }
     }).then(updateBadge)
   );
