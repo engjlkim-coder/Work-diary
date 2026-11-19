@@ -9,12 +9,14 @@ self.addEventListener('push', event => {
   const n = d.notification || d.data || {};
   const title = n.title || '공지사항';
   const link = (d.fcmOptions && d.fcmOptions.link) || (d.data && d.data.link) || n.click_action || './';
+  const noticeId = (d.data && d.data.noticeId) || '';
   event.waitUntil(
     self.registration.showNotification(title, {
       body: n.body || '',
       icon: 'icon-192.png',
       badge: 'icon-192.png',
-      data: { link }
+      tag: noticeId ? 'notice-' + noticeId : undefined,     // 같은 공지 알림은 하나로 합침
+      data: { link, noticeId }
     }).then(updateBadge)
   );
 });
@@ -33,10 +35,19 @@ async function updateBadge(){
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   event.waitUntil(updateBadge());
-  const link = (event.notification.data && event.notification.data.link) || './';
-  const url = new URL(link, self.registration.scope).href;
-  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-    for(const c of list){ if('focus' in c) return c.focus(); }      // 이미 열려 있으면 그 창으로
-    return self.clients.openWindow(url);
-  }));
+  const d = event.notification.data || {};
+  const url = new URL(d.link || './', self.registration.scope);
+  if(d.noticeId) url.searchParams.set('notice', d.noticeId);       // 앱이 새로 열릴 때 이 공지를 팝업으로 보여줌
+  event.waitUntil((async () => {
+    const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const c = list.find(x => 'focus' in x);
+    if(c){                                                           // 이미 열려 있으면 그 창에 공지 번호를 전달
+      try{
+        if(d.noticeId) c.postMessage({ type: 'open-notice', id: d.noticeId });
+        await c.focus();
+        return;
+      }catch(e){}
+    }
+    return self.clients.openWindow(url.href);
+  })());
 });

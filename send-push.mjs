@@ -29,7 +29,12 @@ for (const d of snap.docs) {
   const message = { tokens, notification: { title: `📢 ${title}`, body } };
   // 긴급 우선순위(절전 중인 안드로이드에도 빨리 전달) + 24시간 안에 전달되지 않으면 폐기
   message.webpush = { headers: { Urgency: 'high', TTL: '86400' } };
-  if (APP_URL) { message.webpush.fcmOptions = { link: APP_URL }; message.data = { link: APP_URL }; }
+  // 알림을 누르면 이 공지가 팝업으로 뜨도록 공지 번호(문서 ID)를 함께 보냄
+  message.data = { noticeId: d.id };
+  if (APP_URL) {
+    const u = new URL(APP_URL); u.searchParams.set('notice', d.id);
+    message.webpush.fcmOptions = { link: u.href }; message.data.link = u.href;
+  }
 
   const res = await admin.messaging().sendEachForMulticast(message);
   console.log(`${d.id}: 성공 ${res.successCount} / 실패 ${res.failureCount}`);
