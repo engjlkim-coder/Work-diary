@@ -27,15 +27,23 @@ for (const d of snap.docs) {
   const title = (n.title || '').trim() || '공지사항';
   const body = String(n.message || '').replace(/\s+/g, ' ').trim().slice(0, 120) || '새 공지가 있습니다.';
   const message = { tokens, notification: { title: `📢 ${title}`, body } };
-  if (APP_URL) { message.webpush = { fcmOptions: { link: APP_URL } }; message.data = { link: APP_URL }; }
+  // 긴급 우선순위(절전 중인 안드로이드에도 빨리 전달) + 24시간 안에 전달되지 않으면 폐기
+  message.webpush = { headers: { Urgency: 'high', TTL: '86400' } };
+  if (APP_URL) { message.webpush.fcmOptions = { link: APP_URL }; message.data = { link: APP_URL }; }
 
   const res = await admin.messaging().sendEachForMulticast(message);
   console.log(`${d.id}: 성공 ${res.successCount} / 실패 ${res.failureCount}`);
+
+  // 대상자별 등록 기기 수와, 실패한 기기의 오류 이유를 로그에 남김 (이메일은 앞 3글자만 표시)
+  const per = {};
+  tokens.forEach(t => { const e = owner.get(t); per[e] = (per[e] || 0) + 1; });
+  console.log('등록 기기 수:', Object.entries(per).map(([e, c]) => `${e.slice(0, 3)}***: ${c}`).join(', '));
 
   // 더 이상 유효하지 않은 토큰은 지움
   const dead = [];
   res.responses.forEach((r, i) => {
     const code = r.error && r.error.code;
+    if (r.error) console.log(`  실패 [${owner.get(tokens[i]).slice(0, 3)}***] ${code} - ${r.error.message}`);
     if (code === 'messaging/registration-token-not-registered' || code === 'messaging/invalid-registration-token') dead.push(tokens[i]);
   });
   for (const tok of dead) {
