@@ -853,7 +853,10 @@
 <body>
 
 <div class="toolbar">
-  <h1>현업일지 로컬 백업 뷰어 (오프라인)</h1>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
+    <h1 style="margin:0">현업일지 로컬 백업 뷰어 (오프라인)</h1>
+    <a href="./" id="viewerCloseBtn" style="flex:0 0 auto;text-decoration:none;border:1px solid #ffffff88;background:transparent;color:#fff;border-radius:7px;padding:7px 14px;font-size:13px;font-weight:700;white-space:nowrap">닫기</a>
+  </div>
   <div class="row">
     <input type="file" id="fileInput" accept="application/json,.json" multiple>
     <div id="fileStatus" class="file-status" role="status" aria-live="polite"></div>
