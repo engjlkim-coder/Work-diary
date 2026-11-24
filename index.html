@@ -2777,7 +2777,7 @@ async function wrImportDoneMonth(){
   }).sort((a,b) => a.id < b.id ? -1 : 1);
   const norm = v => String(v||'').replace(/\s/g,'');
   const okStatus = v => norm(v) === '완료';                      // 완료만 (진행중 등은 가져오지 않음)
-  const isInspect = c => /대룡산|화악산/.test(c) && /정기점검/.test(norm(c));   // 대룡산·화악산 정기점검은 가져오지 않음 (아래 고정 항목으로 대체)
+  const isInspect = c => /대룡산|화악산/.test(c) && /점검/.test(norm(c));   // 대룡산·화악산 (정기) 점검 항목은 가져오지 않음 (아래 고정 항목으로 대체)
   const isFixed = c => WR_FIXED_DONE.some(f => norm(f.content) === norm(c));
   const merged = new Map();
   let total = 0;
@@ -2808,10 +2808,10 @@ async function wrImportDoneMonth(){
   const dupInWeeks = total - merged.size;
   alert(`주간업무보고 ${weeks.length}주에서 완료 ${added}건을 가져왔습니다.` + (fixedAdded ? `\n(고정 항목 ${fixedAdded}건 추가)` : '') + (dupInWeeks ? `\n(여러 주에 겹친 ${dupInWeeks}건은 한 번만 정리)` : '') + (dup ? `\n(이미 있는 ${dup}건은 건너뜀)` : ''));
 }
-// 매번 반복되는 월간 실시사항 (맨 앞: 방송 송출, 맨 뒤: 송신소 정기 점검)
+// 매번 반복되는 월간 실시사항 (각 구분의 맨 위)
 const WR_FIXED_DONE = [
   {content:'TV, 제1FM, 제2FM, DMB 방송 송출 및 생방송 진행', date:'상시', status:'완료', note:'방송제작/송출', pin:-1},
-  {content:'대룡산, 화악산 송신소 정기 점검', date:'월중', status:'완료', note:'송중계소관리', pin:1}
+  {content:'대룡산, 화악산 송신소 정기 점검', date:'월중', status:'완료', note:'송중계소관리', pin:-1}
 ];
 // 실시일 정렬용 값: 'M/D' 의 첫 날짜 → M*100+D, 월초/월중/월말/주중, 그 외 상시·빈칸은 맨 뒤
 function wrDateKey(v){
@@ -2824,7 +2824,7 @@ function wrDateKey(v){
   if(t.startsWith('월말')) return cur + 31;
   return 99999;
 }
-// 월간 실시사항을 실시일이 빠른 순으로 정렬 (같은 날은 계획사항 구분 순서 → 기존 순서). 고정 항목은 맨 앞/맨 뒤
+// 월간 실시사항 정렬: 구분 순서(WR_CAT_ORDER) 안에서 실시일 빠른 순. 고정 항목(방송 송출·송신소 정기 점검)은 각 구분의 맨 위
 function wrSortDone(){
   const st = wr.state;
   const isF = d => WR_FIXED_DONE.find(f => f.content.replace(/\s/g,'') === String(d.content||'').replace(/\s/g,''));
@@ -2832,7 +2832,7 @@ function wrSortDone(){
   const blank = st.done.filter(d => !wrRowFilled(d));
   const catIdx = d => { const i = WR_CAT_ORDER.indexOf((d.note||'').trim()); return i < 0 ? 99 : i; };
   const decorated = filled.map((d,i) => { const f = isF(d); return {d, i, pin: f ? f.pin : 0}; });
-  decorated.sort((x,y) => (x.pin - y.pin) || (wrDateKey(x.d.date) - wrDateKey(y.d.date)) || (catIdx(x.d) - catIdx(y.d)) || (x.i - y.i));
+  decorated.sort((x,y) => (catIdx(x.d) - catIdx(y.d)) || (x.pin - y.pin) || (wrDateKey(x.d.date) - wrDateKey(y.d.date)) || (x.i - y.i));
   st.done = decorated.map(x => x.d).concat(blank);
   if(!st.done.length) st.done.push(wrNewDone());
 }
